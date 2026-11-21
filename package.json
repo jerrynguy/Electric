@@ -1,0 +1,10 @@
+{
+  "name": "mach-dien-lab",
+  "version": "1.0.0",
+  "description": "Vẽ mạch điện và tự tính toán U, I, P (DC, AC, diode, BJT, op-amp)",
+  "private": true,
+  "scripts": {
+    "test": "node tests/run-tests.js",
+    "build": "node build.js"
+  }
+}

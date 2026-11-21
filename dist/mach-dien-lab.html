@@ -1,0 +1,2085 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mạch Điện Lab</title>
+<style>
+:root {
+  --bg: #f6f7f9; --surface: #ffffff; --surface2: #f0f2f5; --border: #d9dde3; --text: #1d2430; --muted: #657083;
+  --accent: #2563eb; --accent-soft: #dbe7ff; --wire: #334155; --comp: #1e293b; --sel: #f97316; --grid: #c8cdd6;
+  --volt: #0f766e; --volt-bg: #e6f6f4; --cur: #b45309; --err: #b91c1c; --err-bg: #fdecec; --warn: #92400e; --warn-bg: #fff6e0;
+  --pin-free: #ef4444;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1218; --surface: #171b23; --surface2: #1e2430; --border: #2c3442; --text: #e5e9f0; --muted: #94a0b4;
+    --accent: #60a5fa; --accent-soft: #1e3a5f; --wire: #a8b3c4; --comp: #e2e8f0; --sel: #fb923c; --grid: #2f3846;
+    --volt: #5eead4; --volt-bg: #0f2e2b; --cur: #fbbf24; --err: #fca5a5; --err-bg: #3b1616; --warn: #fcd34d; --warn-bg: #3a2c0c;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1218; --surface: #171b23; --surface2: #1e2430; --border: #2c3442; --text: #e5e9f0; --muted: #94a0b4;
+  --accent: #60a5fa; --accent-soft: #1e3a5f; --wire: #a8b3c4; --comp: #e2e8f0; --sel: #fb923c; --grid: #2f3846;
+  --volt: #5eead4; --volt-bg: #0f2e2b; --cur: #fbbf24; --err: #fca5a5; --err-bg: #3b1616; --warn: #fcd34d; --warn-bg: #3a2c0c;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; overflow: hidden; }
+button, select, input { font: inherit; color: inherit; }
+button { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+button:hover { border-color: var(--accent); }
+button.on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+select, input[type=text], input[type=number] { background: var(--surface); border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; min-width: 0; }
+input[type=text]:focus, select:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+.brand { font-weight: 700; display: flex; align-items: center; gap: 6px; color: var(--accent); }
+.tools { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.sep { width: 1px; height: 22px; background: var(--border); margin: 0 2px; }
+
+.layout { flex: 1; display: grid; grid-template-columns: 150px 1fr 340px; min-height: 0; }
+.palette { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; padding: 8px; }
+.palette h4 { margin: 10px 2px 4px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.palette button { display: flex; align-items: center; gap: 6px; width: 100%; margin-bottom: 4px; padding: 4px 6px; text-align: left; font-size: 13px; }
+.palette svg { width: 34px; height: 22px; flex: none; }
+.palette svg * { fill: none; stroke: var(--comp); stroke-width: 2.4; }
+.palette svg .fill { fill: var(--comp); }
+.palette svg .thick { stroke-width: 5; }
+
+.canvas-wrap { position: relative; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+#canvas { flex: 1; width: 100%; display: block; touch-action: none; user-select: none; background: var(--bg); }
+.griddot { fill: var(--grid); }
+.statusbar { display: flex; justify-content: space-between; gap: 12px; padding: 4px 10px; font-size: 12px; color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); }
+#hover { color: var(--volt); font-weight: 600; }
+.banner { position: absolute; top: 8px; left: 8px; right: 8px; z-index: 2; background: var(--surface); border: 1px solid var(--accent); border-left-width: 4px; border-radius: 6px; padding: 8px 32px 8px 10px; font-size: 13px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.banner .x { position: absolute; right: 6px; top: 6px; padding: 0 6px; }
+
+/* SVG */
+.comp .sym * { fill: none; stroke: var(--comp); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.comp .sym .fill { fill: var(--comp); }
+.comp .sym .thick { stroke-width: 4.5; }
+.comp .sym .thin { stroke-width: 1.5; }
+.comp .sym .pin-o { fill: var(--bg); }
+.comp .hit { fill: transparent; stroke: none; cursor: move; }
+.comp.sel .sym * { stroke: var(--sel); }
+.comp.sel .sym .fill { fill: var(--sel); }
+.comp.ghost { opacity: .5; pointer-events: none; }
+.clabel { font-size: 12px; fill: var(--text); pointer-events: none; }
+.clabel .nm { font-weight: 700; }
+.clabel .vl { fill: var(--muted); }
+.clabel .rs { fill: var(--cur); font-weight: 600; }
+.wire line.w { stroke: var(--wire); stroke-width: 2; stroke-linecap: round; }
+.wire line.hit { stroke: transparent; stroke-width: 12; cursor: pointer; }
+.wire.sel line.w { stroke: var(--sel); stroke-width: 3; }
+.wire.preview line.w { stroke: var(--accent); stroke-dasharray: 5 4; }
+.junc { fill: var(--wire); }
+.freepin { fill: none; stroke: var(--pin-free); stroke-width: 1.5; }
+.cursor-dot { fill: var(--accent); opacity: .7; }
+.vtag rect { fill: var(--volt-bg); stroke: var(--volt); stroke-width: 1; }
+.vtag text { fill: var(--volt); font-size: 11.5px; font-weight: 600; }
+.ltag rect { fill: var(--surface); stroke: var(--accent); stroke-width: 1.5; }
+.ltag text { fill: var(--accent); font-size: 12px; font-weight: 700; }
+.ltag line { stroke: var(--accent); stroke-width: 1.5; }
+.state-tag { font-size: 11px; font-weight: 600; fill: var(--accent); }
+
+/* Panel */
+.panel { background: var(--surface); border-left: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--border); }
+.tabs button { flex: 1; border: none; border-radius: 0; background: transparent; padding: 9px 4px; border-bottom: 2px solid transparent; }
+.tabs button.on { color: var(--accent); border-bottom-color: var(--accent); background: transparent; }
+.modebar { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.chk { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+.tab { overflow-y: auto; padding: 10px 12px 24px; flex: 1; min-height: 0; }
+.msg { margin: 6px 12px 0; padding: 6px 8px; border-radius: 6px; font-size: 12.5px; }
+.msg.err { background: var(--err-bg); color: var(--err); }
+.msg.warn { background: var(--warn-bg); color: var(--warn); }
+h3 { margin: 4px 0 8px; font-size: 15px; }
+h4 { margin: 14px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.field { display: grid; grid-template-columns: 1fr 120px; gap: 6px; align-items: center; margin-bottom: 6px; }
+.field label { font-size: 13px; color: var(--muted); }
+.field input[type=text] { width: 100%; }
+.field.bad input { border-color: var(--err); }
+.hint { font-size: 12px; color: var(--muted); margin: 4px 0 8px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+td, th { padding: 4px 6px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+th { color: var(--muted); font-weight: 600; font-size: 12px; }
+td.num { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+tr.click { cursor: pointer; }
+tr.click:hover td { background: var(--surface2); }
+.badge { display: inline-block; font-size: 11.5px; padding: 1px 7px; border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.explain { background: var(--surface2); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.explain div { margin: 3px 0; }
+.explain b { color: var(--accent); }
+.big { font-size: 18px; font-weight: 700; color: var(--accent); }
+.tool-box { border: 1px solid var(--border); border-radius: 8px; padding: 10px; margin-bottom: 12px; }
+.tool-box .field { grid-template-columns: 110px 1fr; }
+.tool-box select, .tool-box input[type=text] { width: 100%; }
+.chart { width: 100%; height: 180px; display: block; margin-top: 8px; }
+.chart .ax { stroke: var(--muted); fill: none; }
+.chart .ln { fill: none; stroke: var(--accent); stroke-width: 2; }
+.chart .tr { stroke: var(--sel); stroke-dasharray: 4 3; }
+.chart text { font-size: 10px; fill: var(--muted); }
+.empty { color: var(--muted); font-size: 13px; }
+
+.modal { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 10; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.modal[hidden] { display: none; }
+.modal-box { position: relative; background: var(--surface); border-radius: 10px; max-width: 760px; width: 100%; max-height: 90vh; overflow-y: auto; padding: 18px 22px; }
+.modal-box .close { position: absolute; top: 10px; right: 10px; }
+.modal-box h2 { margin-top: 0; }
+.modal-box h3 { margin-top: 18px; color: var(--accent); }
+.modal-box code, .f { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; background: var(--surface2); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+.modal-box li { margin: 3px 0; }
+
+@media (max-width: 860px) {
+  body { overflow: auto; }
+  .layout { grid-template-columns: 1fr; grid-template-rows: auto 60vh auto; }
+  .palette { display: flex; gap: 4px; overflow-x: auto; border-right: none; border-bottom: 1px solid var(--border); padding: 6px 16px; }
+  .palette h4 { display: none; }
+  .palette button { width: auto; margin: 0; flex: none; }
+  .panel { border-left: none; border-top: 1px solid var(--border); }
+  .tab { overflow: visible; }
+  .topbar { padding: 8px 16px; }
+}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><svg viewBox="0 0 24 24" width="22" height="22"><path d="M2 12h5l2-5 3 10 3-10 2 5h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg> Mạch Điện Lab</div>
+  <div class="tools">
+    <button data-mode="select" class="on" title="Chọn / kéo (V)">↖ Chọn</button>
+    <button data-mode="wire" title="Vẽ dây (W)">╱ Dây</button>
+    <span class="sep"></span>
+    <button id="btnRot" title="Xoay (R)">⟳ Xoay</button>
+    <button id="btnFlip" title="Lật (F)">⇅ Lật</button>
+    <button id="btnDel" title="Xoá (Delete)">✕ Xoá</button>
+    <span class="sep"></span>
+    <button id="btnUndo" title="Hoàn tác (Ctrl+Z)">↶</button>
+    <button id="btnRedo" title="Làm lại (Ctrl+Y)">↷</button>
+    <span class="sep"></span>
+    <select id="exSelect" title="Mạch ví dụ"><option value="">📘 Ví dụ (đề thi)…</option></select>
+    <button id="btnNew" title="Mạch mới">Mới</button>
+    <button id="btnSave" title="Lưu ra file">Lưu</button>
+    <button id="btnOpen" title="Mở file">Mở</button>
+    <input type="file" id="fileIn" accept=".json,application/json" hidden>
+    <button id="btnHelp" title="Hướng dẫn & công thức">? Công thức</button>
+  </div>
+</header>
+<main class="layout">
+  <aside class="palette" id="palette"></aside>
+  <section class="canvas-wrap">
+    <div id="banner" class="banner" hidden></div>
+    <svg id="canvas" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="gridpat" width="20" height="20" patternUnits="userSpaceOnUse"><circle cx="0" cy="0" r="1.1" class="griddot"/><circle cx="20" cy="0" r="1.1" class="griddot"/><circle cx="0" cy="20" r="1.1" class="griddot"/><circle cx="20" cy="20" r="1.1" class="griddot"/></pattern>
+      </defs>
+      <rect id="gridbg" fill="url(#gridpat)"/>
+      <g id="layer"></g>
+    </svg>
+    <div class="statusbar"><span id="status">Sẵn sàng</span><span id="hover"></span></div>
+  </section>
+  <aside class="panel">
+    <nav class="tabs"><button data-tab="props" class="on">Thuộc tính</button><button data-tab="results">Kết quả</button><button data-tab="tools">Công cụ</button></nav>
+    <div class="modebar"><label>Chế độ: <select id="modeSel"></select></label><label class="chk"><input type="checkbox" id="showV" checked> Hiện số liệu trên mạch</label></div>
+    <div id="msgs"></div>
+    <div class="tab" id="tab-props"></div>
+    <div class="tab" id="tab-results" hidden></div>
+    <div class="tab" id="tab-tools" hidden></div>
+  </aside>
+</main>
+<div id="help" class="modal" hidden><div class="modal-box"><button class="close" id="helpClose">✕</button><div id="helpBody"></div></div></div>
+<script>
+/* Đọc / hiển thị giá trị có tiền tố SI (k, m, µ, ...) */
+(function () {
+  'use strict';
+  const EC = (globalThis.EC = globalThis.EC || {});
+  const PREFIX = { T: 1e12, G: 1e9, M: 1e6, meg: 1e6, k: 1e3, K: 1e3, m: 1e-3, u: 1e-6, 'µ': 1e-6, 'μ': 1e-6, n: 1e-9, p: 1e-12 };
+
+  function parseValue(str) {
+    if (typeof str === 'number') return str;
+    if (str == null) return NaN;
+    const s = String(str).trim().replace(/,/g, '.').replace(/\s+/g, '');
+    if (!s) return NaN;
+    const m = s.match(/^([-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?)(meg|[TGMkKmuµμnp])?([a-zA-ZΩ°]*)$/);
+    if (!m) return NaN;
+    let v = parseFloat(m[1]);
+    if (m[2]) v *= PREFIX[m[2]];
+    return v;
+  }
+
+  const STEPS = [[1e12, 'T'], [1e9, 'G'], [1e6, 'M'], [1e3, 'k'], [1, ''], [1e-3, 'm'], [1e-6, 'µ'], [1e-9, 'n'], [1e-12, 'p']];
+
+  function num(x, digits) {
+    let s = x.toPrecision(digits);
+    if (s.indexOf('e') < 0 && s.indexOf('.') >= 0) s = s.replace(/0+$/, '').replace(/\.$/, '');
+    return s;
+  }
+
+  function fmt(v, unit, digits) {
+    unit = unit || '';
+    digits = digits || 4;
+    if (typeof v !== 'number' || !isFinite(v)) return '—';
+    const a = Math.abs(v);
+    if (a < 1e-13) return '0 ' + unit;
+    for (let i = 0; i < STEPS.length; i++) {
+      const f = STEPS[i][0];
+      if (a >= f * (1 - 5e-5) || i === STEPS.length - 1) {
+        let s = num(v / f, digits);
+        if (Math.abs(parseFloat(s)) >= 1000 && i > 0) s = num(v / STEPS[i - 1][0], digits), i = i - 1;
+        return s + ' ' + STEPS[i][1] + unit;
+      }
+    }
+    return v.toExponential(3) + ' ' + unit;
+  }
+
+  function fmtDeg(d) {
+    if (!isFinite(d)) return '—';
+    return num(Math.abs(d) < 5e-4 ? 0 : d, 4) + '°';
+  }
+
+  /* Số phức dạng {re, im} -> "12.3 V ∠ -45°" */
+  function fmtC(c, unit, digits) {
+    const mag = Math.hypot(c.re, c.im);
+    if (mag < 1e-13) return '0 ' + (unit || '');
+    return fmt(mag, unit, digits) + ' ∠ ' + fmtDeg((Math.atan2(c.im, c.re) * 180) / Math.PI);
+  }
+
+  function fmtRect(c, unit) {
+    const s = c.im < 0 ? ' − j' : ' + j';
+    return num(c.re, 4) + s + num(Math.abs(c.im), 4) + (unit ? ' ' + unit : '');
+  }
+
+  EC.units = { parseValue, fmt, fmtC, fmtDeg, fmtRect, num };
+})();
+</script>
+<script>
+/*
+ * Bộ giải mạch theo phương pháp nút cải tiến (Modified Nodal Analysis - MNA).
+ *  - DC: nguồn DC, tụ hở mạch, cuộn cảm ngắn mạch.
+ *  - AC: phasor hiệu dụng (RMS) tại tần số của nguồn AC, nguồn DC = 0.
+ *  - Linh kiện phi tuyến dùng mô hình tuyến tính từng đoạn giống sách giáo khoa:
+ *      Diode: dẫn (sụt áp Vf) / tắt.
+ *      Zener: dẫn thuận / đánh thủng (Vz) / tắt.
+ *      BJT: ngưng dẫn / khuếch đại (IC = β·IB, VBE) / bão hòa (VCE = VCE(sat)).
+ *      Op-amp lý tưởng: tuyến tính (V+ = V−) / bão hòa dương / bão hòa âm.
+ *    Trạng thái được tìm bằng cách lặp "giả sử – kiểm tra" cho tới khi nhất quán.
+ */
+(function () {
+  'use strict';
+  const EC = (globalThis.EC = globalThis.EC || {});
+  const GMIN = 1e-12; // điện dẫn rất nhỏ từ mỗi nút xuống đất để tránh nút "lơ lửng"
+  const RS = 1e-6; // điện trở nối tiếp rất nhỏ của diode/BJT để tránh vòng nguồn áp
+  const BR = 1000000;
+  const EPS_I = 1e-12, EPS_V = 1e-9;
+
+  const cx = (re, im) => ({ re, im: im || 0 });
+  const csub = (a, b) => cx(a.re - b.re, a.im - b.im);
+  const cadd = (a, b) => cx(a.re + b.re, a.im + b.im);
+  const cmul = (a, b) => cx(a.re * b.re - a.im * b.im, a.re * b.im + a.im * b.re);
+  const cdiv = (a, b) => { const d = b.re * b.re + b.im * b.im; return cx((a.re * b.re + a.im * b.im) / d, (a.im * b.re - a.re * b.im) / d); };
+  const cscale = (a, k) => cx(a.re * k, a.im * k);
+  const cabs = (a) => Math.hypot(a.re, a.im);
+  const polar = (mag, deg) => cx(mag * Math.cos((deg * Math.PI) / 180), mag * Math.sin((deg * Math.PI) / 180));
+
+  class CircuitError extends Error {}
+
+  class Sys {
+    constructor(nn) { this.nn = nn; this.nb = 0; this.ent = []; this.rhs = []; }
+    add(r, c, re, im) { if (r < 0 || c < 0) return; this.ent.push(r, c, re, im || 0); }
+    addR(r, re, im) { if (r < 0) return; this.rhs.push(r, re, im || 0); }
+    admit(a, b, re, im) {
+      im = im || 0; const i = a - 1, j = b - 1;
+      this.add(i, i, re, im); this.add(j, j, re, im); this.add(i, j, -re, -im); this.add(j, i, -re, -im);
+    }
+    /* Nhánh nguồn áp: V(a) − V(b) − Z·I = v ; I chảy từ a qua phần tử sang b */
+    vsrc(a, b, vre, vim, zre, zim) {
+      const k = BR + this.nb++, i = a - 1, j = b - 1;
+      this.add(i, k, 1); this.add(j, k, -1); this.add(k, i, 1); this.add(k, j, -1);
+      if (zre || zim) this.add(k, k, -(zre || 0), -(zim || 0));
+      this.addR(k, vre || 0, vim || 0);
+      return k;
+    }
+    /* Nguồn dòng: dòng I chảy từ a qua phần tử sang b (đẩy ra ở chân b) */
+    isrc(a, b, ire, iim) { this.addR(a - 1, -ire, -(iim || 0)); this.addR(b - 1, ire, iim || 0); }
+    cccs(k, c, e, beta) { this.add(c - 1, k, beta); this.add(e - 1, k, -beta); }
+    opampLin(p, m, out) {
+      const k = BR + this.nb++;
+      this.add(out - 1, k, 1); this.add(k, p - 1, 1); this.add(k, m - 1, -1);
+      return k;
+    }
+    solve() {
+      const nn = this.nn, N = nn - 1 + this.nb;
+      const map = (i) => (i >= BR ? nn - 1 + (i - BR) : i);
+      const Ar = new Float64Array(N * N), Ai = new Float64Array(N * N);
+      const br = new Float64Array(N), bi = new Float64Array(N);
+      for (let i = 0; i < nn - 1; i++) Ar[i * N + i] += GMIN;
+      const e = this.ent;
+      for (let t = 0; t < e.length; t += 4) { const r = map(e[t]), c = map(e[t + 1]); Ar[r * N + c] += e[t + 2]; Ai[r * N + c] += e[t + 3]; }
+      const h = this.rhs;
+      for (let t = 0; t < h.length; t += 3) { const r = map(h[t]); br[r] += h[t + 1]; bi[r] += h[t + 2]; }
+      for (let k = 0; k < N; k++) {
+        let p = k, best = -1;
+        for (let i = k; i < N; i++) { const m = Math.abs(Ar[i * N + k]) + Math.abs(Ai[i * N + k]); if (m > best) { best = m; p = i; } }
+        if (best < 1e-14) throw new CircuitError('singular');
+        if (p !== k) {
+          for (let j = 0; j < N; j++) {
+            let t = Ar[k * N + j]; Ar[k * N + j] = Ar[p * N + j]; Ar[p * N + j] = t;
+            t = Ai[k * N + j]; Ai[k * N + j] = Ai[p * N + j]; Ai[p * N + j] = t;
+          }
+          let t = br[k]; br[k] = br[p]; br[p] = t; t = bi[k]; bi[k] = bi[p]; bi[p] = t;
+        }
+        const pr = Ar[k * N + k], pi = Ai[k * N + k], d = pr * pr + pi * pi;
+        for (let i = k + 1; i < N; i++) {
+          const ar = Ar[i * N + k], ai = Ai[i * N + k];
+          if (ar === 0 && ai === 0) continue;
+          const fr = (ar * pr + ai * pi) / d, fi = (ai * pr - ar * pi) / d;
+          for (let j = k; j < N; j++) {
+            const xr = Ar[k * N + j], xi = Ai[k * N + j];
+            if (xr === 0 && xi === 0) continue;
+            Ar[i * N + j] -= fr * xr - fi * xi; Ai[i * N + j] -= fr * xi + fi * xr;
+          }
+          const yr = br[k], yi = bi[k];
+          br[i] -= fr * yr - fi * yi; bi[i] -= fr * yi + fi * yr;
+        }
+      }
+      const xr = new Float64Array(N), xi = new Float64Array(N);
+      for (let i = N - 1; i >= 0; i--) {
+        let sr = br[i], si = bi[i];
+        for (let j = i + 1; j < N; j++) {
+          const ar = Ar[i * N + j], ai = Ai[i * N + j];
+          sr -= ar * xr[j] - ai * xi[j]; si -= ar * xi[j] + ai * xr[j];
+        }
+        const pr = Ar[i * N + i], pi = Ai[i * N + i], d = pr * pr + pi * pi;
+        xr[i] = (sr * pr + si * pi) / d; xi[i] = (si * pr - sr * pi) / d;
+      }
+      return {
+        V: (n) => (n <= 0 ? cx(0) : cx(xr[n - 1], xi[n - 1])),
+        I: (k) => cx(xr[map(k)], xi[map(k)]),
+        Vd(a, b) { return csub(this.V(a), this.V(b)); },
+        nodeCount: nn,
+      };
+    }
+  }
+
+  /* ---------- Mô tả từng loại linh kiện ---------- */
+  const two = (q) => q; // tiện ích đặt tên
+  function acSource(e, ctx) {
+    if (!ctx.ac || Math.abs(ctx.freq - e.p.f) > 1e-9) return cx(0);
+    return polar(e.p.V !== undefined ? e.p.V : e.p.I, e.p.ph || 0);
+  }
+
+  const DEV = {
+    R: {
+      stamp(s, e) { const [a, b] = e.nodes; if (Math.abs(e.p.R) < 1e-12) return { k: s.vsrc(a, b, 0) }; s.admit(a, b, 1 / e.p.R); return {}; },
+      res(sol, e, info) { const [a, b] = e.nodes; const U = sol.Vd(a, b); return two({ U, I: info.k != null ? sol.I(info.k) : cscale(U, 1 / e.p.R) }); },
+    },
+    C: {
+      stamp(s, e, ctx) { if (ctx.ac) s.admit(e.nodes[0], e.nodes[1], 0, ctx.omega * e.p.C); return {}; },
+      res(sol, e, info, ctx) { const U = sol.Vd(e.nodes[0], e.nodes[1]); return { U, I: ctx.ac ? cmul(U, cx(0, ctx.omega * e.p.C)) : cx(0) }; },
+    },
+    L: {
+      stamp(s, e, ctx) { return { k: s.vsrc(e.nodes[0], e.nodes[1], 0, 0, 0, ctx.ac ? ctx.omega * e.p.L : 0) }; },
+      res(sol, e, info) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: sol.I(info.k) }; },
+    },
+    Z: {
+      stamp(s, e, ctx) {
+        const [a, b] = e.nodes; const z = ctx.ac ? cx(e.p.R, e.p.X) : cx(e.p.R);
+        if (cabs(z) < 1e-12) return { k: s.vsrc(a, b, 0) };
+        const y = cdiv(cx(1), z); s.admit(a, b, y.re, y.im); return { y };
+      },
+      res(sol, e, info) { const U = sol.Vd(e.nodes[0], e.nodes[1]); return { U, I: info.k != null ? sol.I(info.k) : cmul(U, info.y) }; },
+    },
+    SW: {
+      stamp(s, e) { return e.p.closed ? { k: s.vsrc(e.nodes[0], e.nodes[1], 0) } : {}; },
+      res(sol, e, info) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: info.k != null ? sol.I(info.k) : cx(0) }; },
+    },
+    V: {
+      stamp(s, e, ctx) { return { k: s.vsrc(e.nodes[0], e.nodes[1], ctx.ac ? 0 : e.p.V) }; },
+      res(sol, e, info) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: sol.I(info.k) }; },
+    },
+    ACV: {
+      stamp(s, e, ctx) { const v = acSource(e, ctx); return { k: s.vsrc(e.nodes[0], e.nodes[1], v.re, v.im) }; },
+      res(sol, e, info) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: sol.I(info.k) }; },
+    },
+    I: {
+      stamp(s, e, ctx) { if (!ctx.ac) s.isrc(e.nodes[0], e.nodes[1], e.p.I); return {}; },
+      res(sol, e, info, ctx) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: cx(ctx.ac ? 0 : e.p.I) }; },
+    },
+    ACI: {
+      stamp(s, e, ctx) { const i = acSource(e, ctx); s.isrc(e.nodes[0], e.nodes[1], i.re, i.im); return { i }; },
+      res(sol, e, info) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: info.i }; },
+    },
+    D: {
+      states: ['off', 'on'], init: 'off',
+      stamp(s, e, ctx, st) { return st === 'on' ? { k: s.vsrc(e.nodes[0], e.nodes[1], ctx.ac ? 0 : e.p.Vf, 0, RS) } : {}; },
+      res(sol, e, info) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: info.k != null ? sol.I(info.k) : cx(0) }; },
+      check(sol, e, info, st) {
+        if (st === 'on') return sol.I(info.k).re < -EPS_I ? 'off' : null;
+        return sol.Vd(e.nodes[0], e.nodes[1]).re > e.p.Vf + EPS_V ? 'on' : null;
+      },
+    },
+    ZD: {
+      states: ['off', 'fwd', 'bd'], init: 'off',
+      stamp(s, e, ctx, st) {
+        if (st === 'fwd') return { k: s.vsrc(e.nodes[0], e.nodes[1], ctx.ac ? 0 : e.p.Vf, 0, RS) };
+        if (st === 'bd') return { k: s.vsrc(e.nodes[0], e.nodes[1], ctx.ac ? 0 : -e.p.Vz, 0, RS) };
+        return {};
+      },
+      res(sol, e, info) { return { U: sol.Vd(e.nodes[0], e.nodes[1]), I: info.k != null ? sol.I(info.k) : cx(0) }; },
+      check(sol, e, info, st) {
+        if (st === 'fwd') return sol.I(info.k).re < -EPS_I ? 'off' : null;
+        if (st === 'bd') return sol.I(info.k).re > EPS_I ? 'off' : null;
+        const v = sol.Vd(e.nodes[0], e.nodes[1]).re;
+        if (v > e.p.Vf + EPS_V) return 'fwd';
+        if (v < -e.p.Vz - EPS_V) return 'bd';
+        return null;
+      },
+    },
+    NPN: null, PNP: null,
+    OPAMP: {
+      states: ['lin', 'pos', 'neg'], init: 'lin',
+      // nodes: [in−, in+, out]
+      stamp(s, e, ctx, st) {
+        const [m, p, o] = e.nodes;
+        if (st === 'lin') return { k: s.opampLin(p, m, o) };
+        return { k: s.vsrc(o, 0, ctx.ac ? 0 : st === 'pos' ? e.p.Vpos : e.p.Vneg) };
+      },
+      res(sol, e, info) {
+        const [m, p, o] = e.nodes;
+        const Vout = sol.V(o), Vp = sol.V(p), Vm = sol.V(m), Iout = cscale(sol.I(info.k), -1);
+        return { Vout, Vp, Vm, Vd: csub(Vp, Vm), Iout, P: -(Vout.re * Iout.re + Vout.im * Iout.im) };
+      },
+      check(sol, e, info, st) {
+        const [m, p, o] = e.nodes;
+        if (st === 'lin') { const v = sol.V(o).re; if (v > e.p.Vpos + EPS_V) return 'pos'; if (v < e.p.Vneg - EPS_V) return 'neg'; return null; }
+        const vd = sol.V(p).re - sol.V(m).re;
+        if (st === 'pos') return vd < -EPS_V ? 'lin' : null;
+        return vd > EPS_V ? 'lin' : null;
+      },
+    },
+  };
+
+  function bjt(sign) {
+    return {
+      states: ['cut', 'act', 'sat'], init: 'act',
+      // nodes: [B, C, E]
+      stamp(s, e, ctx, st) {
+        const [B, C, E] = e.nodes;
+        if (st === 'cut') return {};
+        const kbe = s.vsrc(B, E, ctx.ac ? 0 : sign * e.p.Vbe, 0, RS);
+        if (st === 'act') { s.cccs(kbe, C, E, e.p.beta); return { kbe }; }
+        return { kbe, kce: s.vsrc(C, E, ctx.ac ? 0 : sign * e.p.Vcesat, 0, RS) };
+      },
+      res(sol, e, info, ctx, st) {
+        const [B, C, E] = e.nodes;
+        let IB = cx(0), IC = cx(0);
+        if (st !== 'cut') { IB = sol.I(info.kbe); IC = st === 'act' ? cscale(IB, e.p.beta) : sol.I(info.kce); }
+        const VBE = sol.Vd(B, E), VCE = sol.Vd(C, E);
+        const P = VBE.re * IB.re + VBE.im * IB.im + VCE.re * IC.re + VCE.im * IC.im;
+        // Với PNP hiển thị dòng theo chiều quy ước (chảy ra khỏi B và C) để luôn dương
+        const s2 = sign;
+        return { VBE, VCE, IB: cscale(IB, s2), IC: cscale(IC, s2), IE: cscale(cadd(IB, IC), s2), P };
+      },
+      check(sol, e, info, st) {
+        const [B, C, E] = e.nodes;
+        if (st === 'cut') return sign * sol.Vd(B, E).re > e.p.Vbe + EPS_V ? 'act' : null;
+        const ib = sign * sol.I(info.kbe).re;
+        if (ib < -EPS_I) return 'cut';
+        if (st === 'act') return sign * sol.Vd(C, E).re < e.p.Vcesat - EPS_V ? 'sat' : null;
+        const ic = sign * sol.I(info.kce).re;
+        if (ic > e.p.beta * ib + EPS_I || ic < -EPS_I) return 'act';
+        return null;
+      },
+    };
+  }
+  DEV.NPN = bjt(1);
+  DEV.PNP = bjt(-1);
+
+  const STATE_NAMES = {
+    on: 'Dẫn', off: 'Tắt', fwd: 'Dẫn thuận', bd: 'Đánh thủng (ổn áp)',
+    cut: 'Ngưng dẫn', act: 'Khuếch đại (tích cực)', sat: 'Bão hòa',
+    lin: 'Tuyến tính', pos: 'Bão hòa dương', neg: 'Bão hòa âm',
+  };
+
+  /* ---------- Giải với một tổ hợp trạng thái cố định ---------- */
+  function solveFixed(net, ctx, states) {
+    const s = new Sys(net.nodeCount);
+    const infos = {};
+    for (const e of net.elements) infos[e.id] = DEV[e.type].stamp(s, e, ctx, states[e.id]);
+    const sol = s.solve();
+    return { sol, infos };
+  }
+
+  function collect(net, ctx, states, fixed) {
+    const { sol, infos } = fixed;
+    const nodeV = [];
+    for (let n = 0; n < net.nodeCount; n++) nodeV.push(sol.V(n));
+    const el = {};
+    for (const e of net.elements) {
+      const q = DEV[e.type].res(sol, e, infos[e.id], ctx, states[e.id]);
+      if (q.U && q.I && q.P === undefined) {
+        q.P = q.U.re * q.I.re + q.U.im * q.I.im;
+        if (ctx.ac) q.Q = q.U.im * q.I.re - q.U.re * q.I.im;
+      }
+      el[e.id] = { q, state: states[e.id] || null };
+    }
+    return { nodeV, el, states: Object.assign({}, states), ctx };
+  }
+
+  function solveDC(net, warnings) {
+    const ctx = { ac: false, freq: 0, omega: 0 };
+    const nl = net.elements.filter((e) => DEV[e.type].states);
+    const states = {};
+    nl.forEach((e) => (states[e.id] = (e.initState) || DEV[e.type].init));
+    const keyOf = (st) => nl.map((e) => st[e.id]).join('|');
+
+    const tryStates = (st) => {
+      let f;
+      try { f = solveFixed(net, ctx, st); } catch (err) { if (err instanceof CircuitError) return { ok: false }; throw err; }
+      const changes = [];
+      for (const e of nl) { const nx = DEV[e.type].check(f.sol, e, f.infos[e.id], st[e.id]); if (nx) changes.push([e.id, nx]); }
+      return { ok: true, f, changes };
+    };
+
+    if (!nl.length) {
+      let f;
+      try { f = solveFixed(net, ctx, states); } catch (err) { throw singularMsg(err); }
+      return collect(net, ctx, states, f);
+    }
+
+    const seen = new Set();
+    let cur = Object.assign({}, states);
+    for (let it = 0; it < 300; it++) {
+      const r = tryStates(cur);
+      if (!r.ok) break;
+      if (!r.changes.length) return collect(net, ctx, cur, r.f);
+      seen.add(keyOf(cur));
+      let next = Object.assign({}, cur);
+      r.changes.forEach(([id, st]) => (next[id] = st));
+      if (seen.has(keyOf(next))) {
+        let found = false;
+        for (const [id, st] of r.changes) {
+          next = Object.assign({}, cur); next[id] = st;
+          if (!seen.has(keyOf(next))) { found = true; break; }
+        }
+        if (!found) break;
+      }
+      cur = next;
+    }
+    // Vét cạn mọi tổ hợp trạng thái (mạch nhỏ)
+    const counts = nl.map((e) => DEV[e.type].states.length);
+    const total = counts.reduce((a, b) => a * b, 1);
+    if (total <= 200000) {
+      const idx = new Array(nl.length).fill(0);
+      for (let t = 0; t < total; t++) {
+        const st = {};
+        nl.forEach((e, i) => (st[e.id] = DEV[e.type].states[idx[i]]));
+        const r = tryStates(st);
+        if (r.ok && !r.changes.length) return collect(net, ctx, st, r.f);
+        for (let i = 0; i < idx.length; i++) { idx[i]++; if (idx[i] < counts[i]) break; idx[i] = 0; }
+      }
+    }
+    throw new CircuitError('Không tìm được trạng thái nhất quán cho các linh kiện phi tuyến (diode/BJT/op-amp). Kiểm tra lại cách nối mạch.');
+  }
+
+  function singularMsg(err) {
+    if (err instanceof CircuitError && err.message === 'singular')
+      return new CircuitError('Mạch không giải được: có vòng chỉ gồm nguồn áp / cuộn cảm (DC) / dây nối tắt, hoặc nguồn dòng bị hở mạch.');
+    return err;
+  }
+
+  function analyze(net) {
+    const out = { ok: true, error: null, warnings: [], dc: null, ac: [] };
+    try {
+      out.dc = solveDC(net, out.warnings);
+    } catch (err) {
+      out.ok = false;
+      out.error = singularMsg(err).message;
+      return out;
+    }
+    const freqs = [];
+    for (const e of net.elements) {
+      if ((e.type === 'ACV' || e.type === 'ACI') && e.p.f > 0 && !freqs.some((f) => Math.abs(f - e.p.f) < 1e-9)) freqs.push(e.p.f);
+    }
+    if (freqs.length > 1) out.warnings.push('Có nhiều tần số khác nhau: kết quả AC được tính riêng cho từng tần số (xếp chồng).');
+    const hasNL = net.elements.some((e) => ['D', 'ZD', 'NPN', 'PNP'].includes(e.type));
+    if (freqs.length && hasNL) out.warnings.push('Phân tích AC với diode/BJT dùng trạng thái DC (mô hình gần đúng).');
+    for (const f of freqs) {
+      const ctx = { ac: true, freq: f, omega: 2 * Math.PI * f };
+      try {
+        out.ac.push(collect(net, ctx, out.dc.states, solveFixed(net, ctx, out.dc.states)));
+      } catch (err) {
+        out.warnings.push('AC ' + f + ' Hz: ' + singularMsg(err).message);
+      }
+    }
+    const big = out.dc.nodeV.some((v) => Math.abs(v.re) > 1e7);
+    if (big) out.warnings.push('Có điện áp cực lớn: có thể nguồn dòng đang bị hở mạch hoặc nút bị bỏ lửng.');
+    return out;
+  }
+
+  EC.solver = { analyze, DEV, STATE_NAMES, cx, cabs, cadd, csub, cmul, cdiv, polar };
+})();
+</script>
+<script>
+/* Định nghĩa linh kiện: chân, tham số, hình vẽ (toạ độ cục bộ, đơn vị px, lưới 20px) */
+(function () {
+  'use strict';
+  const EC = (globalThis.EC = globalThis.EC || {});
+  const G = 20;
+  const P2 = [[-2, 0], [2, 0]];
+  const lead = (a, b) => `M-40 0H${a} M${b} 0H40`;
+
+  const COMP = {
+    R: {
+      label: 'Điện trở', prefix: 'R', group: 'Cơ bản', pins: P2, pinNames: ['1', '2'], box: [-2, -0.6, 2, 0.6],
+      params: [{ k: 'R', label: 'Điện trở R', unit: 'Ω', def: '1k' }],
+      draw: () => `<path d="M-40 0H-24 l4 -8 l8 16 l8 -16 l8 16 l8 -16 l8 16 l4 -8 H40"/>`,
+      value: (p, f) => f(p.R, 'Ω'),
+    },
+    C: {
+      label: 'Tụ điện', prefix: 'C', group: 'Cơ bản', pins: P2, pinNames: ['1', '2'], box: [-2, -0.8, 2, 0.8],
+      params: [{ k: 'C', label: 'Điện dung C', unit: 'F', def: '1u' }],
+      draw: () => `<path d="${lead(-5, 5)} M-5 -14V14 M5 -14V14"/>`,
+      value: (p, f) => f(p.C, 'F'),
+    },
+    L: {
+      label: 'Cuộn cảm', prefix: 'L', group: 'Cơ bản', pins: P2, pinNames: ['1', '2'], box: [-2, -0.6, 2, 0.4],
+      params: [{ k: 'L', label: 'Độ tự cảm L', unit: 'H', def: '10m' }],
+      draw: () => `<path d="M-40 0H-24 a6 6 0 0 1 12 0 a6 6 0 0 1 12 0 a6 6 0 0 1 12 0 a6 6 0 0 1 12 0 H40"/>`,
+      value: (p, f) => f(p.L, 'H'),
+    },
+    Z: {
+      label: 'Trở kháng Z', prefix: 'Z', group: 'Cơ bản', pins: P2, pinNames: ['1', '2'], box: [-2, -0.6, 2, 0.6],
+      params: [{ k: 'R', label: 'Phần thực R', unit: 'Ω', def: '3' }, { k: 'X', label: 'Phần ảo X (+ cảm, − dung)', unit: 'Ω', def: '3' }],
+      draw: () => `<path d="${lead(-20, 20)}"/><rect x="-20" y="-9" width="40" height="18" rx="2"/><path class="thin" d="M-7 -4h14l-14 8h14"/>`,
+      value: (p, f) => EC.units.num(p.R, 4) + (p.X < 0 ? ' − j' : ' + j') + EC.units.num(Math.abs(p.X), 4) + ' Ω',
+      hint: 'Trở kháng cố định Z = R + jX (không phụ thuộc tần số). Ở DC chỉ còn R.',
+    },
+    SW: {
+      label: 'Công tắc', prefix: 'S', group: 'Cơ bản', pins: P2, pinNames: ['1', '2'], box: [-2, -0.8, 2, 0.4],
+      params: [{ k: 'closed', label: 'Đóng', type: 'bool', def: true }],
+      draw: (c) => `<path d="M-40 0H-16 M16 0H40 ${c.params.closed ? 'M-16 0L16 0' : 'M-16 0L13 -13'}"/><circle class="pin-o" cx="-16" cy="0" r="2.5"/><circle class="pin-o" cx="16" cy="0" r="2.5"/>`,
+      value: (p) => (p.closed ? 'đóng' : 'mở'),
+    },
+    V: {
+      label: 'Nguồn áp DC', prefix: 'V', group: 'Nguồn', pins: P2, pinNames: ['+', '−'], box: [-2, -0.9, 2, 0.9],
+      params: [{ k: 'V', label: 'Điện áp V', unit: 'V', def: '12' }],
+      draw: () => `<path d="${lead(-5, 5)} M-5 -16V16"/><path class="thick" d="M5 -8V8"/><path class="thin" d="M-20 -14h8 M-16 -18v8"/>`,
+      value: (p, f) => f(p.V, 'V'),
+      hint: 'Chân có dấu + (vạch dài) là cực dương.',
+    },
+    ACV: {
+      label: 'Nguồn áp AC', prefix: 'V', group: 'Nguồn', pins: P2, pinNames: ['+', '−'], box: [-2, -0.9, 2, 0.9],
+      params: [
+        { k: 'V', label: 'Điện áp hiệu dụng (RMS)', unit: 'V', def: '220' },
+        { k: 'f', label: 'Tần số f', unit: 'Hz', def: '50' },
+        { k: 'ph', label: 'Góc pha', unit: '°', def: '0' },
+      ],
+      draw: () => `<path d="${lead(-16, 16)}"/><circle cx="0" cy="0" r="16"/><path class="thin" d="M-9 0c3 -11 6 -11 9 0s6 11 9 0 M-30 -12h7 M-26.5 -15.5v7"/>`,
+      value: (p, f) => f(p.V, 'V') + (p.ph ? ' ∠' + p.ph + '°' : '') + ', ' + f(p.f, 'Hz'),
+      hint: 'Biên độ đỉnh = √2 × giá trị hiệu dụng. Kết quả AC hiển thị dạng hiệu dụng.',
+    },
+    I: {
+      label: 'Nguồn dòng DC', prefix: 'I', group: 'Nguồn', pins: P2, pinNames: ['vào', 'ra'], box: [-2, -0.9, 2, 0.9],
+      params: [{ k: 'I', label: 'Dòng điện I', unit: 'A', def: '1m' }],
+      draw: () => `<path d="${lead(-16, 16)}"/><circle cx="0" cy="0" r="16"/><path class="thin" d="M-9 0H8 M2 -5L8 0L2 5"/>`,
+      value: (p, f) => f(p.I, 'A'),
+      hint: 'Dòng chảy theo chiều mũi tên (đi ra ở chân 2).',
+    },
+    ACI: {
+      label: 'Nguồn dòng AC', prefix: 'I', group: 'Nguồn', pins: P2, pinNames: ['vào', 'ra'], box: [-2, -0.9, 2, 0.9],
+      params: [
+        { k: 'I', label: 'Dòng hiệu dụng (RMS)', unit: 'A', def: '1' },
+        { k: 'f', label: 'Tần số f', unit: 'Hz', def: '50' },
+        { k: 'ph', label: 'Góc pha', unit: '°', def: '0' },
+      ],
+      draw: () => `<path d="${lead(-16, 16)}"/><circle cx="0" cy="0" r="16"/><path class="thin" d="M-9 -3c3 -8 6 -8 9 0s6 8 9 0 M-6 8H6 M2 5L6 8L2 11"/>`,
+      value: (p, f) => f(p.I, 'A') + ', ' + f(p.f, 'Hz'),
+    },
+    D: {
+      label: 'Diode', prefix: 'D', group: 'Bán dẫn', pins: P2, pinNames: ['A (anode)', 'K (cathode)'], box: [-2, -0.7, 2, 0.7],
+      params: [{ k: 'Vf', label: 'Điện áp thuận Vf', unit: 'V', def: '0.7' }],
+      draw: () => `<path d="${lead(-8, 8)} M8 -10V10"/><path class="fill" d="M-8 -10L8 0L-8 10Z"/>`,
+      value: (p, f) => 'Vf=' + f(p.Vf, 'V'),
+      hint: 'Mô hình sụt áp hằng: dẫn thì U = Vf, tắt thì I = 0.',
+    },
+    ZD: {
+      label: 'Diode Zener', prefix: 'DZ', group: 'Bán dẫn', pins: P2, pinNames: ['A (anode)', 'K (cathode)'], box: [-2, -0.7, 2, 0.7],
+      params: [{ k: 'Vz', label: 'Điện áp Zener Vz', unit: 'V', def: '5.1' }, { k: 'Vf', label: 'Điện áp thuận Vf', unit: 'V', def: '0.7' }],
+      draw: () => `<path d="${lead(-8, 8)} M4 -13L8 -10V10L12 13"/><path class="fill" d="M-8 -10L8 0L-8 10Z"/>`,
+      value: (p, f) => 'Vz=' + f(p.Vz, 'V'),
+      hint: 'Phân cực ngược (cathode dương hơn) với U ≥ Vz thì Zener ổn áp ở Vz.',
+    },
+    NPN: {
+      label: 'BJT NPN', prefix: 'Q', group: 'Bán dẫn', pins: [[-2, 0], [1, -2], [1, 2]], pinNames: ['B', 'C', 'E'], box: [-2, -2, 1.6, 2],
+      params: [
+        { k: 'beta', label: 'Hệ số khuếch đại β (hFE)', unit: '', def: '100' },
+        { k: 'Vbe', label: 'V_BE', unit: 'V', def: '0.7' },
+        { k: 'Vcesat', label: 'V_CE(sat)', unit: 'V', def: '0.2' },
+      ],
+      draw: () => `<circle cx="4" cy="0" r="25"/><path d="M-40 0H-6 M-6 7L20 24V40 M-6 -7L20 -24V-40"/><path class="thick" d="M-6 -16V16"/><path class="fill" d="M14.8 20.6L5.9 19.6L10.3 12.9Z"/>`,
+      value: (p) => 'β=' + p.beta,
+    },
+    PNP: {
+      label: 'BJT PNP', prefix: 'Q', group: 'Bán dẫn', pins: [[-2, 0], [1, -2], [1, 2]], pinNames: ['B', 'C', 'E'], box: [-2, -2, 1.6, 2],
+      params: [
+        { k: 'beta', label: 'Hệ số khuếch đại β (hFE)', unit: '', def: '100' },
+        { k: 'Vbe', label: '|V_BE|', unit: 'V', def: '0.7' },
+        { k: 'Vcesat', label: '|V_CE(sat)|', unit: 'V', def: '0.2' },
+      ],
+      draw: () => `<circle cx="4" cy="0" r="25"/><path d="M-40 0H-6 M-6 7L20 24V40 M-6 -7L20 -24V-40"/><path class="thick" d="M-6 -16V16"/><path class="fill" d="M1.5 11.9L10.4 12.9L6 19.6Z"/>`,
+      value: (p) => 'β=' + p.beta,
+      hint: 'PNP: emitter thường nối lên nguồn dương; các dòng hiển thị theo chiều quy ước.',
+    },
+    OPAMP: {
+      label: 'Op-amp', prefix: 'U', group: 'Bán dẫn', labelBelow: true, pins: [[-3, -1], [-3, 1], [3, 0]], pinNames: ['−', '+', 'Out'], box: [-3, -2, 3, 2],
+      params: [{ k: 'Vpos', label: 'Mức bão hòa dương (+Vcc)', unit: 'V', def: '15' }, { k: 'Vneg', label: 'Mức bão hòa âm (−Vee)', unit: 'V', def: '-15' }],
+      draw: () => `<path d="M-60 -20H-40 M-60 20H-40 M40 0H60"/><path d="M-40 -40L-40 40L40 0Z"/><path class="thin" d="M-34 -20h9 M-34 20h9 M-29.5 15.5v9"/>`,
+      value: (p) => '±' + p.Vpos + 'V',
+      hint: 'Op-amp lý tưởng: dòng vào = 0, khi tuyến tính V+ = V−. Lật (F) để đổi chỗ chân + / −.',
+    },
+    GND: {
+      label: 'Đất (GND)', prefix: 'GND', group: 'Khác', pins: [[0, 0]], pinNames: ['0'], box: [-0.7, 0, 0.7, 1.2],
+      params: [], noLabel: true,
+      draw: () => `<path d="M0 0V12 M-12 12H12 M-7 17H7 M-2.5 22H2.5"/>`,
+    },
+    LABEL: {
+      label: 'Nhãn nút', prefix: 'A', group: 'Khác', pins: [[0, 0]], pinNames: ['nút'], box: [-0.5, -0.5, 0.5, 0.5],
+      params: [], noLabel: true,
+      draw: () => `<circle class="fill" cx="0" cy="0" r="3"/>`,
+      hint: 'Đặt tên cho nút (ví dụ A, B, Vout). Các nhãn trùng tên được coi là nối với nhau.',
+    },
+  };
+
+  function xf(c, lx, ly) {
+    let x = lx, y = c.flip ? -ly : ly;
+    for (let i = 0; i < ((c.rot || 0) & 3); i++) { const t = x; x = -y; y = t; }
+    return { x: c.x + x, y: c.y + y };
+  }
+  function pinPositions(c) { return COMP[c.type].pins.map(([x, y]) => xf(c, x, y)); }
+  function worldBox(c) {
+    const b = COMP[c.type].box;
+    const ps = [xf(c, b[0], b[1]), xf(c, b[2], b[3])];
+    return { x1: Math.min(ps[0].x, ps[1].x), y1: Math.min(ps[0].y, ps[1].y), x2: Math.max(ps[0].x, ps[1].x), y2: Math.max(ps[0].y, ps[1].y) };
+  }
+  function defaults(type) {
+    const p = {};
+    COMP[type].params.forEach((d) => (p[d.k] = d.def));
+    return p;
+  }
+
+  EC.G = G;
+  EC.COMP = COMP;
+  EC.xf = xf;
+  EC.pinPositions = pinPositions;
+  EC.worldBox = worldBox;
+  EC.defaultParams = defaults;
+})();
+</script>
+<script>
+/* Chuyển bản vẽ (linh kiện + dây) thành danh sách nút cho bộ giải */
+(function () {
+  'use strict';
+  const EC = (globalThis.EC = globalThis.EC || {});
+  const key = (x, y) => x + ',' + y;
+
+  class UF {
+    constructor() { this.p = new Map(); }
+    add(a) { if (!this.p.has(a)) this.p.set(a, a); }
+    find(a) { this.add(a); let r = a; while (this.p.get(r) !== r) r = this.p.get(r); let c = a; while (this.p.get(c) !== r) { const n = this.p.get(c); this.p.set(c, r); c = n; } return r; }
+    union(a, b) { const ra = this.find(a), rb = this.find(b); if (ra !== rb) this.p.set(ra, rb); }
+  }
+
+  function onInterior(p, w) {
+    const dx = w.x2 - w.x1, dy = w.y2 - w.y1;
+    const cross = (p.x - w.x1) * dy - (p.y - w.y1) * dx;
+    if (cross !== 0) return false;
+    const dot = (p.x - w.x1) * dx + (p.y - w.y1) * dy;
+    return dot > 0 && dot < dx * dx + dy * dy;
+  }
+
+  function build(model) {
+    const COMP = EC.COMP, parse = EC.units.parseValue;
+    const uf = new UF();
+    const errors = [], warnings = [];
+    const pts = [];
+    const pinsOf = {};
+    const count = new Map();
+    const bump = (k, n) => count.set(k, (count.get(k) || 0) + n);
+    for (const c of model.comps) {
+      const ps = EC.pinPositions(c);
+      pinsOf[c.id] = ps;
+      ps.forEach((p) => { uf.add(key(p.x, p.y)); pts.push(p); bump(key(p.x, p.y), 1); });
+    }
+    for (const w of model.wires) {
+      uf.union(key(w.x1, w.y1), key(w.x2, w.y2));
+      pts.push({ x: w.x1, y: w.y1 }, { x: w.x2, y: w.y2 });
+      bump(key(w.x1, w.y1), 1); bump(key(w.x2, w.y2), 1);
+    }
+    const seenPt = new Set();
+    for (const p of pts) {
+      const k = key(p.x, p.y);
+      if (seenPt.has(k)) continue;
+      seenPt.add(k);
+      for (const w of model.wires) if (onInterior(p, w)) { uf.union(k, key(w.x1, w.y1)); bump(k, 2); }
+    }
+    // Nhãn trùng tên -> nối với nhau
+    const labelKey = {};
+    for (const c of model.comps) if (c.type === 'LABEL') {
+      const k = key(pinsOf[c.id][0].x, pinsOf[c.id][0].y);
+      const nm = (c.name || '').trim();
+      if (!nm) continue;
+      if (labelKey[nm]) uf.union(labelKey[nm], k); else labelKey[nm] = k;
+    }
+
+    // Đánh số nút
+    const rootNode = new Map();
+    const nodeNames = ['GND'];
+    const nodeRep = [null];
+    const grounds = model.comps.filter((c) => c.type === 'GND');
+    for (const g of grounds) { const r = uf.find(key(pinsOf[g.id][0].x, pinsOf[g.id][0].y)); rootNode.set(r, 0); if (!nodeRep[0]) nodeRep[0] = pinsOf[g.id][0]; }
+    let refAuto = null;
+    if (!grounds.length) {
+      const src = model.comps.find((c) => ['V', 'ACV', 'I', 'ACI'].includes(c.type)) || model.comps.find((c) => COMP[c.type].pins.length > 1);
+      if (src) {
+        const p = pinsOf[src.id][src.type === 'V' || src.type === 'ACV' ? 1 : 0];
+        rootNode.set(uf.find(key(p.x, p.y)), 0);
+        nodeRep[0] = p;
+        refAuto = src.name;
+      }
+    }
+    for (const c of model.comps) {
+      for (const p of pinsOf[c.id]) {
+        const r = uf.find(key(p.x, p.y));
+        if (!rootNode.has(r)) { rootNode.set(r, nodeNames.length); nodeNames.push('N' + nodeNames.length); nodeRep.push(p); }
+      }
+    }
+    // Tên nút theo nhãn
+    for (const c of model.comps) if (c.type === 'LABEL' && (c.name || '').trim()) {
+      const n = rootNode.get(uf.find(key(pinsOf[c.id][0].x, pinsOf[c.id][0].y)));
+      if (n > 0) nodeNames[n] = c.name.trim();
+      else if (n === 0) nodeNames[0] = 'GND (' + c.name.trim() + ')';
+    }
+    // tránh trùng tên tự động với tên nhãn
+    const used = new Set();
+    nodeNames.forEach((nm, i) => { let n = nm, j = 2; while (used.has(n)) n = nm + '_' + j++; used.add(n); nodeNames[i] = n; });
+
+    const nodeAt = (x, y) => {
+      const k = key(x, y);
+      if (uf.p.has(k)) { const r = rootNode.get(uf.find(k)); if (r !== undefined) return r; }
+      for (const w of model.wires) if (onInterior({ x, y }, w)) { const r = rootNode.get(uf.find(key(w.x1, w.y1))); if (r !== undefined) return r; }
+      return undefined;
+    };
+
+    const elements = [];
+    const compNodes = {};
+    for (const c of model.comps) {
+      const def = COMP[c.type];
+      const nodes = pinsOf[c.id].map((p) => rootNode.get(uf.find(key(p.x, p.y))));
+      compNodes[c.id] = nodes;
+      if (c.type === 'GND' || c.type === 'LABEL') continue;
+      const p = {};
+      let bad = false;
+      for (const d of def.params) {
+        if (d.type === 'bool') { p[d.k] = !!c.params[d.k]; continue; }
+        const v = parse(c.params[d.k]);
+        if (!isFinite(v)) { errors.push(`${c.name}: giá trị "${d.label}" không hợp lệ`); bad = true; }
+        p[d.k] = v;
+      }
+      if (bad) continue;
+      if ((c.type === 'C' && p.C <= 0) || (c.type === 'L' && p.L < 0) || (c.type === 'R' && p.R < 0)) { errors.push(`${c.name}: giá trị phải dương`); continue; }
+      if ((c.type === 'V' || c.type === 'ACV') && nodes[0] === nodes[1]) { errors.push(`${c.name}: nguồn áp bị nối tắt hai cực`); continue; }
+      pinsOf[c.id].forEach((pp, i) => { if ((count.get(key(pp.x, pp.y)) || 0) < 2) warnings.push(`${c.name}: chân ${def.pinNames[i]} chưa được nối`); });
+      elements.push({ id: c.id, type: c.type, name: c.name, nodes, p });
+    }
+    if (refAuto && elements.length) warnings.push(`Chưa có GND: lấy cực âm của ${refAuto} làm mốc 0 V.`);
+
+    return { net: { nodeCount: nodeNames.length, elements, nodeNames }, nodeNames, nodeRep, nodeAt, compNodes, pinsOf, count, errors, warnings, onInterior };
+  }
+
+  EC.netlist = { build, onInterior, key };
+})();
+</script>
+<script>
+/* Công cụ: phân tích một mô hình, tìm giá trị tham số (goal seek), quét tham số */
+(function () {
+  'use strict';
+  const EC = (globalThis.EC = globalThis.EC || {});
+
+  function run(model) {
+    const b = EC.netlist.build(model);
+    if (b.errors.length) return { build: b, result: { ok: false, error: b.errors.join('; '), warnings: [], ac: [] } };
+    if (!b.net.elements.length) return { build: b, result: null };
+    return { build: b, result: EC.solver.analyze(b.net) };
+  }
+
+  /* spec: { node: 'A' } hoặc { comp: 'R4' (tên), key: 'I' } ; mode: 'dc' | số tần số */
+  function pickRes(result, mode) {
+    if (!result || !result.ok) return null;
+    if (mode === 'dc' || mode == null) return result.dc;
+    return result.ac.find((r) => Math.abs(r.ctx.freq - mode) < 1e-9) || null;
+  }
+
+  function extract(model, run_, spec) {
+    const { build, result } = run_;
+    const r = pickRes(result, spec.mode);
+    if (!r) return NaN;
+    let v;
+    if (spec.node != null) {
+      const n = build.nodeNames.indexOf(spec.node);
+      if (n < 0) return NaN;
+      v = r.nodeV[n];
+    } else {
+      const c = model.comps.find((c) => c.name === spec.comp);
+      if (!c || !r.el[c.id]) return NaN;
+      v = r.el[c.id].q[spec.key];
+    }
+    if (v == null) return NaN;
+    if (typeof v === 'number') return v;
+    return spec.mode === 'dc' || spec.mode == null ? v.re : Math.hypot(v.re, v.im);
+  }
+
+  function signature(model, run_) {
+    const r = run_.result;
+    if (!r || !r.ok) return 'lỗi';
+    const parts = [];
+    for (const c of model.comps) { const st = r.dc.states[c.id]; if (st) parts.push(c.name + ':' + st); }
+    return parts.join(', ');
+  }
+
+  function withParam(model, compName, param, x) {
+    const m = JSON.parse(JSON.stringify(model));
+    const c = m.comps.find((c) => c.name === compName);
+    if (c) c.params[param] = String(x);
+    return m;
+  }
+
+  function evalAt(model, compName, param, x, spec) {
+    const m = withParam(model, compName, param, x);
+    const r = run(m);
+    return { value: extract(m, r, spec), sig: signature(m, r), run: r, model: m };
+  }
+
+  function goalSeek(o) {
+    const { model, comp, param, spec, target } = o;
+    const c = model.comps.find((c) => c.name === comp);
+    const x0 = EC.units.parseValue(c.params[param]);
+    let lo = o.min, hi = o.max, log;
+    if (lo == null || hi == null || !isFinite(lo) || !isFinite(hi)) {
+      if (x0 > 0) { lo = x0 / 1e5; hi = x0 * 1e5; } else { const s = Math.max(1, Math.abs(x0)) * 1000; lo = -s; hi = s; }
+    }
+    log = lo > 0 && hi > 0;
+    const N = 400;
+    const xs = [], fs = [];
+    for (let i = 0; i <= N; i++) {
+      const t = i / N;
+      const x = log ? lo * Math.pow(hi / lo, t) : lo + (hi - lo) * t;
+      xs.push(x); fs.push(evalAt(model, comp, param, x, spec).value - target);
+    }
+    const brackets = [];
+    let best = { x: NaN, f: Infinity };
+    for (let i = 0; i <= N; i++) {
+      if (isFinite(fs[i]) && Math.abs(fs[i]) < Math.abs(best.f)) best = { x: xs[i], f: fs[i] };
+      if (i < N && isFinite(fs[i]) && isFinite(fs[i + 1]) && (fs[i] === 0 || fs[i] * fs[i + 1] < 0)) brackets.push(i);
+    }
+    const dist = (x) => (log && x0 > 0 ? Math.abs(Math.log(x / x0)) : Math.abs(x - x0));
+    const roots = [];
+    for (const i of brackets) {
+      let a = xs[i], b = xs[i + 1], fa = fs[i];
+      if (fa === 0) { roots.push(a); continue; }
+      for (let it = 0; it < 100; it++) {
+        const m = log ? Math.sqrt(a * b) : (a + b) / 2;
+        const fm = evalAt(model, comp, param, m, spec).value - target;
+        if (!isFinite(fm)) break;
+        if (fm === 0) { a = b = m; break; }
+        if (fa * fm < 0) b = m; else { a = m; fa = fm; }
+      }
+      const x = log ? Math.sqrt(a * b) : (a + b) / 2;
+      const f = evalAt(model, comp, param, x, spec).value - target;
+      if (Math.abs(f) <= 1e-6 * Math.max(1, Math.abs(target))) roots.push(x);
+    }
+    roots.sort((a, b) => dist(a) - dist(b));
+    if (roots.length) {
+      const x = roots[0];
+      return { ok: true, x, roots, value: evalAt(model, comp, param, x, spec).value, range: [lo, hi] };
+    }
+    return { ok: false, best, range: [lo, hi] };
+  }
+
+  function sweep(o) {
+    const { model, comp, param, from, to, steps, log, spec } = o;
+    const pts = [];
+    const n = Math.max(2, steps | 0);
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const x = log ? from * Math.pow(to / from, t) : from + (to - from) * t;
+      const r = evalAt(model, comp, param, x, spec);
+      pts.push({ x, y: r.value, sig: r.sig });
+    }
+    const transitions = [];
+    for (let i = 0; i < n; i++) {
+      if (pts[i].sig === pts[i + 1].sig) continue;
+      let a = pts[i].x, b = pts[i + 1].x;
+      const sa = pts[i].sig;
+      for (let it = 0; it < 80; it++) {
+        const m = log ? Math.sqrt(a * b) : (a + b) / 2;
+        if (evalAt(model, comp, param, m, spec).sig === sa) a = m; else b = m;
+      }
+      transitions.push({ x: log ? Math.sqrt(a * b) : (a + b) / 2, from: sa, to: pts[i + 1].sig });
+    }
+    return { pts, transitions };
+  }
+
+  EC.tools = { run, extract, goalSeek, sweep, evalAt, pickRes, signature };
+})();
+</script>
+<script>
+/* Các mạch ví dụ – dựng lại đề thi (Hình 1 → Hình 7) */
+(function () {
+  'use strict';
+  const EC = (globalThis.EC = globalThis.EC || {});
+
+  function mk(fn) {
+    let n = 1;
+    const m = { comps: [], wires: [] };
+    const c = (type, name, x, y, rot, params, flip) => {
+      m.comps.push({ id: 'c' + n++, type, name, x, y, rot: rot || 0, flip: !!flip, params: Object.assign(EC.defaultParams(type), params || {}) });
+    };
+    const w = (...p) => { for (let i = 0; i + 3 < p.length; i += 2) m.wires.push({ id: 'w' + n++, x1: p[i], y1: p[i + 1], x2: p[i + 2], y2: p[i + 3] }); };
+    fn(c, w);
+    return m;
+  }
+
+  const EXAMPLES = [
+    {
+      id: 'h1', title: 'Câu 1 – Hình 1: tìm R3 để V(A) = 8,5 V',
+      note: 'V1=12V, V2=5V, R1=10Ω, R2=5Ω. Mở tab "Công cụ" → "Tìm giá trị" (đã điền sẵn) để tìm R3. Đáp án: R3 = 10 Ω.',
+      goal: { comp: 'R3', param: 'R', spec: { node: 'A', mode: 'dc' }, target: 8.5 },
+      build: () => mk((c, w) => {
+        c('V', 'V1', 0, 3, 1, { V: '12' });
+        c('R', 'R3', 5, 2, 1, { R: '20' });
+        c('R', 'R1', 10, 2, 1, { R: '10' });
+        c('V', 'V2', 10, 6, 1, { V: '5' });
+        c('R', 'R2', 10, 10, 1, { R: '5' });
+        c('LABEL', 'A', 14, 4); c('LABEL', 'B', 14, 8);
+        c('GND', 'GND1', 10, 12);
+        w(0, 1, 0, 0, 10, 0); w(5, 4, 14, 4); w(10, 8, 14, 8); w(0, 5, 0, 12, 10, 12);
+      }),
+    },
+    {
+      id: 'h2', title: 'Câu 2 – Hình 2: công suất trên R4',
+      note: 'V3=24V, V4=12V, R4=10Ω, R5=5Ω, R6=5Ω, R7=10Ω, R8=10Ω. Bấm vào R4 để xem P. Đáp án: P(R4) ≈ 27,2 W.',
+      build: () => mk((c, w) => {
+        c('V', 'V3', 0, 3, 1, { V: '24' });
+        c('R', 'R4', 3, 0, 0, { R: '10' });
+        c('R', 'R5', 6, 3, 1, { R: '5' });
+        c('R', 'R6', 9, 0, 0, { R: '5' });
+        c('R', 'R7', 12, 3, 1, { R: '10' });
+        c('R', 'R8', 15, 0, 0, { R: '10' });
+        c('V', 'V4', 18, 3, 1, { V: '12' });
+        c('GND', 'GND1', 9, 6);
+        w(0, 1, 0, 0, 1, 0); w(5, 0, 7, 0); w(11, 0, 13, 0); w(17, 0, 18, 0, 18, 1); w(6, 0, 6, 1); w(12, 0, 12, 1);
+        w(0, 5, 0, 6, 18, 6, 18, 5); w(6, 5, 6, 6); w(12, 5, 12, 6);
+      }),
+    },
+    {
+      id: 'h3', title: 'Câu 3 – Hình 3: dòng hiệu dụng qua R9 (AC)',
+      note: 'V5 = 185V hiệu dụng, 50Hz; C1=6mF; L1=26,5mH; R9=10Ω; R10=5Ω. Xem kết quả ở chế độ AC 50 Hz. Đáp án: I(R9) ≈ 14,5 A.',
+      build: () => mk((c, w) => {
+        c('ACV', 'V5', 0, 3, 1, { V: '185', f: '50' });
+        c('L', 'L1', 3, 0, 0, { L: '26.5m' });
+        c('R', 'R9', 8, 0, 0, { R: '10' });
+        c('R', 'R10', 11, 3, 1, { R: '5' });
+        c('C', 'C1', 17, 3, 1, { C: '6m' });
+        c('GND', 'GND1', 0, 6);
+        w(0, 1, 0, 0, 1, 0); w(5, 0, 6, 0); w(10, 0, 17, 0, 17, 1); w(11, 0, 11, 1);
+        w(0, 5, 0, 6, 17, 6, 17, 5); w(11, 5, 11, 6);
+      }),
+    },
+    {
+      id: 'h4', title: 'Câu 4 – Mạch 3 pha Y-Y: tìm điện trở đường dây',
+      note: 'Nguồn 120V∠0°, ∠−120°, ∠−240°; tải 3+j3 Ω mỗi pha; dòng pha B = 22,5 A. Dùng "Tìm giá trị" (đã điền sẵn) cho Rd_B. Đáp án: ≈ 1,41 Ω.',
+      goal: { comp: 'RdB', param: 'R', spec: { comp: 'RdB', key: 'I', mode: 50 }, target: 22.5 },
+      build: () => mk((c, w) => {
+        const rows = [['A', 0, '0'], ['B', 5, '-120'], ['C', 10, '-240']];
+        for (const [ph, y, deg] of rows) {
+          c('ACV', 'V' + ph, 2, y, 2, { V: '120', f: '50', ph: deg });
+          c('R', 'Rd' + ph, 6, y, 0, { R: '1' });
+          c('Z', 'Z' + ph, 10, y, 0, { R: '3', X: '3' });
+        }
+        c('GND', 'GND1', 0, 12);
+        w(0, 0, 0, 12, 14, 12, 14, 0); w(12, 0, 14, 0); w(12, 5, 14, 5); w(12, 10, 14, 10);
+        c('LABEL', 'N', 14, 12);
+      }),
+    },
+    {
+      id: 'h5', title: 'Câu 5 – Hình 4: dòng qua Diode D1',
+      note: 'V6=36V, R11=6kΩ, R12=3kΩ, R13=1kΩ, Vf=0,7V. Đáp án: I(D1) ≈ 3,77 mA.',
+      build: () => mk((c, w) => {
+        c('V', 'V6', 0, 3, 1, { V: '36' });
+        c('R', 'R11', 3, 0, 0, { R: '6k' });
+        c('R', 'R12', 6, 3, 1, { R: '3k' });
+        c('D', 'D1', 9, 0, 0, { Vf: '0.7' });
+        c('R', 'R13', 13, 3, 1, { R: '1k' });
+        c('GND', 'GND1', 0, 6);
+        w(0, 1, 0, 0, 1, 0); w(5, 0, 7, 0); w(6, 0, 6, 1); w(11, 0, 13, 0, 13, 1);
+        w(0, 5, 0, 6, 13, 6, 13, 5); w(6, 5, 6, 6);
+      }),
+    },
+    {
+      id: 'h6', title: 'Câu 6 – Hình 5: dòng qua Zener D2',
+      note: 'Vz=24V, V7=32V, R14=250Ω, R15=1,2kΩ. Đáp án: I(Zener) ≈ 12 mA.',
+      build: () => mk((c, w) => {
+        c('V', 'V7', 0, 3, 1, { V: '32' });
+        c('R', 'R14', 3, 0, 0, { R: '250' });
+        c('ZD', 'D2', 6, 3, 3, { Vz: '24' });
+        c('R', 'R15', 12, 3, 1, { R: '1.2k' });
+        c('GND', 'GND1', 0, 6);
+        w(0, 1, 0, 0, 1, 0); w(5, 0, 12, 0, 12, 1); w(6, 0, 6, 1);
+        w(0, 5, 0, 6, 12, 6, 12, 5); w(6, 5, 6, 6);
+      }),
+    },
+    {
+      id: 'h7', title: 'Câu 7 & 8 – Hình 6: transistor bão hòa',
+      note: 'VCC=14V, VBB=7,2V, RB=5,5kΩ, RC=1kΩ, β=220, VBE=1V, VCE(sat)=0,2V. Câu 7: bấm Q1 xem P ≈ 3,9 mW. Câu 8: tab "Công cụ" → "Quét tham số" RB để thấy ngưỡng bão hòa ≈ 98,8 kΩ.',
+      sweep: { comp: 'RB', param: 'R', from: 1000, to: 1000000, steps: 60, log: true, spec: { comp: 'Q1', key: 'IC', mode: 'dc' } },
+      build: () => mk((c, w) => {
+        c('V', 'VBB', 0, 5, 1, { V: '7.2' });
+        c('R', 'RB', 2, 3, 0, { R: '5.5k' });
+        c('NPN', 'Q1', 6, 3, 0, { beta: '220', Vbe: '1', Vcesat: '0.2' });
+        c('R', 'RC', 7, -1, 1, { R: '1k' });
+        c('V', 'VCC', 13, 0, 1, { V: '14' });
+        c('GND', 'GND1', 7, 7);
+        w(7, -3, 13, -3, 13, -2); w(13, 2, 13, 7, 0, 7); w(7, 5, 7, 7);
+      }),
+    },
+    {
+      id: 'h8', title: 'Câu 9 & 10 – Hình 7: mạch op-amp',
+      note: 'R1=1kΩ, R2=20kΩ, Vi1=4V, Vi2=2V, nguồn ±15V. Lý thuyết: Vout = −(R2/R1)·Vi1 + (1+R2/R1)·Vi2 = −38 V → bị giới hạn (bão hòa) ở −15 V.',
+      build: () => mk((c, w) => {
+        c('V', 'Vi1', -4, 3, 1, { V: '4' });
+        c('R', 'R1', 0, 1, 0, { R: '1k' });
+        c('V', 'Vi2', 1, 6, 1, { V: '2' });
+        c('OPAMP', 'U1', 6, 2, 0, { Vpos: '15', Vneg: '-15' });
+        c('R', 'R2', 6, -3, 0, { R: '20k' });
+        c('LABEL', 'Vout', 12, 2);
+        c('GND', 'GND1', 1, 9);
+        w(-4, 1, -2, 1); w(1, 4, 1, 3, 3, 3); w(2, 1, 3, 1); w(3, 1, 3, -3, 4, -3); w(8, -3, 10, -3, 10, 2); w(9, 2, 12, 2);
+        w(-4, 5, -4, 9, 1, 9); w(1, 8, 1, 9);
+      }),
+    },
+  ];
+
+  EC.EXAMPLES = EXAMPLES;
+})();
+</script>
+<script>
+/* Nội dung hướng dẫn & bảng công thức */
+(function () {
+  'use strict';
+  const EC = (globalThis.EC = globalThis.EC || {});
+  EC.HELP_HTML = `
+<h2>Hướng dẫn nhanh</h2>
+<ol>
+  <li><b>Đặt linh kiện:</b> bấm vào linh kiện ở cột trái rồi bấm lên lưới. Phím <code>R</code> xoay, <code>F</code> lật, <code>Esc</code> để thôi.</li>
+  <li><b>Nối dây:</b> chọn <b>Dây</b> (phím <code>W</code>), bấm điểm đầu rồi bấm điểm cuối. Dây tự đi theo hình chữ L. Bấm trúng chân linh kiện hoặc dây khác thì nét vẽ kết thúc, còn nếu không thì vẽ tiếp đoạn sau. Bấm chuột phải hoặc <code>Esc</code> để dừng.</li>
+  <li>Đầu dây hoặc chân linh kiện chạm vào <b>giữa</b> một dây khác thì được nối (có chấm tròn). Hai dây chỉ cắt chéo nhau thì <b>không</b> nối.</li>
+  <li>Luôn đặt một <b>GND</b> làm mốc 0 V. Dùng <b>Nhãn nút</b> để đặt tên điểm (A, B, Vout…). Hai nhãn trùng tên được coi là nối với nhau.</li>
+  <li>Mạch được giải <b>tự động</b> mỗi khi bạn sửa. Bấm vào linh kiện để xem U, I, P và cách tính. Rê chuột lên dây để xem điện thế nút.</li>
+  <li>Giá trị nhập được tiền tố: <code>5.5k</code> = 5500, <code>26,5m</code> = 0,0265, <code>6m</code>, <code>10u</code> (micro), <code>2M</code> (mega), <code>100n</code>, <code>22p</code>.</li>
+  <li>Tab <b>Công cụ</b>: <b>Tìm giá trị</b> (ví dụ tìm R3 để V(A) = 8,5 V) và <b>Quét tham số</b> (xem một đại lượng thay đổi theo tham số, tự tìm ngưỡng đổi trạng thái của BJT/diode/op-amp).</li>
+</ol>
+<h3>Quy ước dấu</h3>
+<ul>
+  <li><b>U</b> của linh kiện 2 chân = V(chân 1) − V(chân 2). <b>I</b> là dòng chảy từ chân 1 qua linh kiện sang chân 2.</li>
+  <li><b>P &gt; 0</b>: linh kiện tiêu thụ. <b>P &lt; 0</b>: linh kiện phát công suất (thường là nguồn).</li>
+  <li>Ở chế độ AC, mọi giá trị là <b>phasor hiệu dụng</b> (RMS), dạng độ lớn ∠ góc pha.</li>
+</ul>
+
+<h2>Bảng công thức</h2>
+<h3>Mạch một chiều (DC)</h3>
+<ul>
+  <li>Định luật Ôm: <span class="f">U = I·R</span>. Công suất: <span class="f">P = U·I = I²R = U²/R</span></li>
+  <li>Nối tiếp: <span class="f">R = R1 + R2 + …</span>. Song song: <span class="f">1/R = 1/R1 + 1/R2 + …</span>, hai điện trở thì <span class="f">R1·R2/(R1+R2)</span></li>
+  <li>Phân áp: <span class="f">U2 = U·R2/(R1+R2)</span>. Phân dòng: <span class="f">I1 = I·R2/(R1+R2)</span></li>
+  <li>Kirchhoff 1 (KCL): tổng dòng vào một nút = tổng dòng ra. Kirchhoff 2 (KVL): tổng điện áp quanh một vòng kín = 0</li>
+  <li>Thevenin: thay phần mạch bằng <span class="f">Vth</span> (điện áp hở mạch) nối tiếp <span class="f">Rth</span> (điện trở nhìn vào khi tắt nguồn)</li>
+  <li>Ở DC: tụ điện = hở mạch, cuộn cảm = ngắn mạch</li>
+</ul>
+<h3>Mạch xoay chiều (AC)</h3>
+<ul>
+  <li><span class="f">ω = 2πf</span>. <span class="f">X_L = ωL</span>, <span class="f">Z_L = jX_L</span>. <span class="f">X_C = 1/(ωC)</span>, <span class="f">Z_C = −jX_C</span></li>
+  <li>Trở kháng nối tiếp và song song tính giống điện trở, nhưng bằng số phức. <span class="f">|Z| = √(R² + X²)</span>, <span class="f">φ = arctan(X/R)</span></li>
+  <li>Giá trị hiệu dụng: <span class="f">U_hd = U_max/√2</span>. Định luật Ôm phức: <span class="f">I = U/Z</span></li>
+  <li><span class="f">P = U·I·cosφ = I²R</span> (W). <span class="f">Q = U·I·sinφ</span> (var). <span class="f">S = U·I</span> (VA)</li>
+</ul>
+<h3>Ba pha (đấu Y cân bằng)</h3>
+<ul>
+  <li><span class="f">U_dây = √3·U_pha</span>, <span class="f">I_dây = I_pha</span>. Đấu Δ: <span class="f">I_dây = √3·I_pha</span></li>
+  <li>Hệ cân bằng thì tính trên <b>một pha</b>: <span class="f">I = U_pha/|Z_dây + Z_tải|</span>. Dòng dây trung tính = 0</li>
+  <li><span class="f">P = 3·U_pha·I·cosφ = √3·U_dây·I·cosφ</span></li>
+</ul>
+<h3>Diode</h3>
+<ul>
+  <li>Mô hình sụt áp hằng: dẫn thì <span class="f">U_D = Vf</span> (Si ≈ 0,7 V), tắt thì <span class="f">I = 0</span></li>
+  <li>Cách giải: giả sử một trạng thái, tính mạch, rồi kiểm tra (dẫn thì phải có I &gt; 0, tắt thì phải có U &lt; Vf)</li>
+  <li>Zener phân cực ngược ổn áp ở <span class="f">Vz</span> khi điện áp đặt vào ≥ Vz: <span class="f">I_Z = I_R(nối tiếp) − I_tải</span></li>
+</ul>
+<h3>Transistor BJT</h3>
+<ul>
+  <li><span class="f">I_E = I_B + I_C</span>. Vùng khuếch đại: <span class="f">I_C = β·I_B</span>, <span class="f">V_BE ≈ 0,7 V</span></li>
+  <li>Mạch như Hình 6: <span class="f">I_B = (V_BB − V_BE)/R_B</span>, <span class="f">I_C(sat) = (V_CC − V_CE(sat))/R_C</span></li>
+  <li>Bão hòa khi <span class="f">β·I_B ≥ I_C(sat)</span>, suy ra <span class="f">R_B ≤ β·(V_BB − V_BE)/I_C(sat)</span></li>
+  <li>Công suất tiêu tán: <span class="f">P = V_CE·I_C + V_BE·I_B</span></li>
+</ul>
+<h3>Op-amp lý tưởng</h3>
+<ul>
+  <li>Dòng vào hai chân = 0. Khi có hồi tiếp âm và chưa bão hòa: <span class="f">V+ = V−</span> (ngắn mạch ảo)</li>
+  <li>Đảo: <span class="f">Vout = −(R2/R1)·Vin</span>. Không đảo: <span class="f">Vout = (1 + R2/R1)·Vin</span></li>
+  <li>Mạch trừ như Hình 7: <span class="f">Vout = −(R2/R1)·Vi1 + (1 + R2/R1)·Vi2</span></li>
+  <li>Vout bị giới hạn trong khoảng nguồn nuôi (±Vcc), vượt quá thì bão hòa</li>
+</ul>
+<h3>Cách app giải mạch</h3>
+<p>App dùng <b>phương pháp điện thế nút cải tiến (MNA)</b>, giống SPICE: viết phương trình KCL cho từng nút, thêm một phương trình cho mỗi nguồn áp, rồi giải hệ phương trình tuyến tính (số phức nếu là AC). Diode, BJT và op-amp được giải bằng cách thử lần lượt các trạng thái cho tới khi mọi điều kiện kiểm tra đều thoả, giống cách làm bằng tay trên giấy.</p>
+`;
+})();
+</script>
+<script>
+/* Giao diện vẽ mạch */
+(function () {
+  'use strict';
+  const EC = globalThis.EC;
+  const { COMP, G } = EC;
+  const U = EC.units;
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const svg = $('#canvas'), layer = $('#layer');
+  const STORE = 'mach-dien-lab-v1';
+
+  let model = { comps: [], wires: [] };
+  let sel = null; // {kind:'comp'|'wire', id}
+  let mode = 'select', placeType = null;
+  let ghost = { x: 0, y: 0, rot: 0, flip: false };
+  let wireStart = null;
+  let cursor = { x: 0, y: 0 };
+  let view = { x: -120, y: -100, scale: 1 };
+  let drag = null, pan = null;
+  let built = null, result = null;
+  let resMode = 'dc';
+  let tab = 'props';
+  let undoStack = [], redoStack = [];
+  let seq = 1;
+  let toolState = { goal: null, sweep: null, goalOut: '', sweepOut: '' };
+
+  /* ---------- tiện ích mô hình ---------- */
+  const snap = () => JSON.stringify(model);
+  function pushUndo() { undoStack.push(snap()); if (undoStack.length > 200) undoStack.shift(); redoStack = []; }
+  function restore(s) { model = JSON.parse(s); fixSeq(); sel = null; changed(false); }
+  function fixSeq() {
+    let m = 0;
+    for (const o of [...model.comps, ...model.wires]) { const n = parseInt(String(o.id).slice(1), 10); if (n > m) m = n; }
+    seq = m + 1;
+  }
+  const comp = (id) => model.comps.find((c) => c.id === id);
+  function nextName(type) {
+    const def = COMP[type];
+    if (type === 'LABEL') {
+      const used = new Set(model.comps.filter((c) => c.type === 'LABEL').map((c) => c.name));
+      for (const ch of 'ABCDEFGHIJKLMNOPQRSTUVWXYZ') if (!used.has(ch)) return ch;
+      return 'X' + seq;
+    }
+    const used = new Set(model.comps.map((c) => c.name));
+    for (let i = 1; ; i++) if (!used.has(def.prefix + i)) return def.prefix + i;
+  }
+  function addComp(type, x, y, rot, flip) {
+    const c = { id: 'c' + seq++, type, name: nextName(type), x, y, rot: rot || 0, flip: !!flip, params: EC.defaultParams(type) };
+    model.comps.push(c);
+    return c;
+  }
+  function addWire(x1, y1, x2, y2) {
+    if (x1 === x2 && y1 === y2) return;
+    model.wires.push({ id: 'w' + seq++, x1, y1, x2, y2 });
+  }
+  function splitAndClean() {
+    // gộp dây trùng và bỏ dây độ dài 0
+    const seen = new Set();
+    model.wires = model.wires.filter((w) => {
+      if (w.x1 === w.x2 && w.y1 === w.y2) return false;
+      const k = [w.x1, w.y1, w.x2, w.y2].join(',');
+      const k2 = [w.x2, w.y2, w.x1, w.y1].join(',');
+      if (seen.has(k) || seen.has(k2)) return false;
+      seen.add(k);
+      return true;
+    });
+  }
+
+  /* ---------- giải mạch ---------- */
+  function solve() {
+    const r = EC.tools.run(model);
+    built = r.build;
+    result = r.result;
+    const modes = [['dc', 'DC (một chiều)']];
+    if (result && result.ok) result.ac.forEach((a) => modes.push(['ac:' + a.ctx.freq, 'AC ' + U.fmt(a.ctx.freq, 'Hz') + ' (hiệu dụng)']));
+    if (!resMode || !modes.some((m) => m[0] === resMode)) resMode = modes.length > 1 && !model.comps.some((c) => c.type === 'V' || c.type === 'I') ? modes[1][0] : 'dc';
+    const ms = $('#modeSel');
+    ms.innerHTML = modes.map(([v, t]) => `<option value="${v}" ${v === resMode ? 'selected' : ''}>${t}</option>`).join('');
+  }
+  function curRes() {
+    if (!result || !result.ok) return null;
+    if (resMode === 'dc') return result.dc;
+    const f = parseFloat(resMode.slice(3));
+    return result.ac.find((a) => Math.abs(a.ctx.freq - f) < 1e-9) || result.dc;
+  }
+  const isAC = () => { const r = curRes(); return !!(r && r.ctx.ac); };
+  const TINY = { A: 1e-10, W: 1e-9, var: 1e-9 };
+  function clean(v, unit) {
+    const t = TINY[unit];
+    if (!t || v == null) return v;
+    if (typeof v === 'number') return Math.abs(v) < t ? 0 : v;
+    return Math.hypot(v.re, v.im) < t ? { re: 0, im: 0 } : v;
+  }
+  function fv(v, unit) {
+    v = clean(v, unit);
+    if (v == null) return '—';
+    if (typeof v === 'number') return U.fmt(v, unit);
+    return isAC() ? U.fmtC(v, unit) : U.fmt(v.re, unit);
+  }
+  function fshort(v, unit) {
+    v = clean(v, unit);
+    if (v == null) return '—';
+    if (typeof v === 'number') return U.fmt(v, unit, 3);
+    return isAC() ? U.fmt(Math.hypot(v.re, v.im), unit, 3) : U.fmt(v.re, unit, 3);
+  }
+  const UNIT = { U: 'V', V: 'V', I: 'A', P: 'W', Q: 'var' };
+  const unitOf = (k) => UNIT[k[0]] || '';
+  const QLABEL = { U: 'Điện áp U', I: 'Dòng điện I', P: 'Công suất P', Q: 'Công suất phản kháng Q', VBE: 'V_BE', VCE: 'V_CE', IB: 'I_B', IC: 'I_C', IE: 'I_E', Vout: 'V_out', Vp: 'V+', Vm: 'V−', Vd: 'V+ − V−', Iout: 'I_out (ra khỏi chân Out)' };
+
+  function changed(record) {
+    if (record) pushUndo();
+    splitAndClean();
+    solve();
+    render();
+    renderPanel();
+    try { localStorage.setItem(STORE, snap()); } catch (e) { /* bỏ qua */ }
+  }
+
+  /* ---------- vẽ ---------- */
+  function labelBlock(c, lines) {
+    const b = EC.worldBox(c);
+    const horiz = b.x2 - b.x1 >= b.y2 - b.y1;
+    let x, y, anchor;
+    if (COMP[c.type].labelBelow && horiz) { x = ((b.x1 + b.x2) / 2) * G; y = b.y2 * G + 16; anchor = 'middle'; }
+    else if (horiz) { x = ((b.x1 + b.x2) / 2) * G; y = b.y1 * G - 6 - (lines.length - 1) * 14; anchor = 'middle'; }
+    else { x = b.x2 * G + 8; y = ((b.y1 + b.y2) / 2) * G - ((lines.length - 1) * 14) / 2 + 4; anchor = 'start'; }
+    return `<text class="clabel" x="${x}" y="${y}" text-anchor="${anchor}">` +
+      lines.map((l, i) => `<tspan x="${x}" dy="${i ? 14 : 0}" class="${l[1]}">${esc(l[0])}</tspan>`).join('') + '</text>';
+  }
+  function tag(x, y, text, cls) {
+    const w = text.length * 6.6 + 10;
+    return `<g class="${cls}" pointer-events="none"><rect x="${x}" y="${y - 9}" width="${w}" height="18" rx="4"/><text x="${x + 5}" y="${y + 4}">${esc(text)}</text></g>`;
+  }
+  function compSVG(c, cls) {
+    const def = COMP[c.type];
+    const b = def.box;
+    const tr = `translate(${c.x * G},${c.y * G}) rotate(${(c.rot || 0) * 90}) scale(1,${c.flip ? -1 : 1})`;
+    let h = `<g class="comp ${cls || ''}" data-cid="${c.id}"><g transform="${tr}"><rect class="hit" x="${b[0] * G - 4}" y="${b[1] * G - 4}" width="${(b[2] - b[0]) * G + 8}" height="${(b[3] - b[1]) * G + 8}"/><g class="sym">${def.draw(c)}</g></g>`;
+    if (c.type === 'LABEL') {
+      const p = EC.pinPositions(c)[0];
+      const t = c.name || '?';
+      const w = t.length * 7.5 + 12;
+      h += `<g class="ltag" pointer-events="none"><line x1="${p.x * G}" y1="${p.y * G}" x2="${p.x * G}" y2="${p.y * G - 14}"/><rect x="${p.x * G - w / 2}" y="${p.y * G - 32}" width="${w}" height="18" rx="9"/><text x="${p.x * G}" y="${p.y * G - 19}" text-anchor="middle">${esc(t)}</text></g>`;
+    } else if (!def.noLabel && cls !== 'ghost') {
+      const lines = [[c.name, 'nm']];
+      const pv = parsedParams(c);
+      if (def.value && pv) lines.push([def.value(pv, (v, u) => U.fmt(v, u, 4)), 'vl']);
+      const r = curRes();
+      if ($('#showV').checked && r && r.el[c.id]) {
+        const e = r.el[c.id];
+        if (e.q.I !== undefined && !['V', 'ACV', 'I', 'ACI'].includes(c.type)) lines.push(['I = ' + fshort(e.q.I, 'A'), 'rs']);
+        else if (['V', 'ACV'].includes(c.type)) lines.push(['I = ' + fshort(EC.solver.cx(-e.q.I.re, -e.q.I.im), 'A'), 'rs']);
+        else if (['I', 'ACI'].includes(c.type)) lines.push(['U = ' + fshort(e.q.U, 'V'), 'rs']);
+        if (e.q.IC !== undefined) lines.push(['I_C = ' + fshort(e.q.IC, 'A'), 'rs']);
+        if (e.state) lines.push([EC.solver.STATE_NAMES[e.state], 'rs']);
+      }
+      h += labelBlock(c, lines);
+    }
+    return h + '</g>';
+  }
+  function parsedParams(c) {
+    const p = {};
+    for (const d of COMP[c.type].params) {
+      if (d.type === 'bool') { p[d.k] = !!c.params[d.k]; continue; }
+      const v = U.parseValue(c.params[d.k]);
+      if (!isFinite(v)) return null;
+      p[d.k] = v;
+    }
+    return p;
+  }
+  function lRoute(a, b) {
+    if (a.x === b.x || a.y === b.y) return [[a.x, a.y, b.x, b.y]];
+    const horizFirst = Math.abs(b.x - a.x) >= Math.abs(b.y - a.y);
+    const m = horizFirst ? { x: b.x, y: a.y } : { x: a.x, y: b.y };
+    return [[a.x, a.y, m.x, m.y], [m.x, m.y, b.x, b.y]];
+  }
+
+  function render() {
+    const W = svg.clientWidth || 800, H = svg.clientHeight || 600;
+    const vw = W / view.scale, vh = H / view.scale;
+    svg.setAttribute('viewBox', `${view.x} ${view.y} ${vw} ${vh}`);
+    const bg = $('#gridbg');
+    bg.setAttribute('x', Math.floor(view.x / G) * G - G); bg.setAttribute('y', Math.floor(view.y / G) * G - G);
+    bg.setAttribute('width', vw + 3 * G); bg.setAttribute('height', vh + 3 * G);
+
+    let h = '';
+    for (const w of model.wires) {
+      const s = sel && sel.kind === 'wire' && sel.id === w.id ? ' sel' : '';
+      const a = `x1="${w.x1 * G}" y1="${w.y1 * G}" x2="${w.x2 * G}" y2="${w.y2 * G}"`;
+      h += `<g class="wire${s}" data-wid="${w.id}"><line class="hit" ${a}/><line class="w" ${a}/></g>`;
+    }
+    for (const c of model.comps) h += compSVG(c, sel && sel.kind === 'comp' && sel.id === c.id ? 'sel' : '');
+    // chấm nối & chân chưa nối
+    if (built) {
+      for (const [k, n] of built.count) {
+        const [x, y] = k.split(',').map(Number);
+        if (n >= 3) h += `<circle class="junc" cx="${x * G}" cy="${y * G}" r="3.6"/>`;
+        else if (n === 1) {
+          const onWire = model.wires.some((w) => EC.netlist.onInterior({ x, y }, w));
+          const isPin = model.comps.some((c) => c.type !== 'LABEL' && c.type !== 'GND' && EC.pinPositions(c).some((p) => p.x === x && p.y === y));
+          if (!onWire && isPin) h += `<circle class="freepin" cx="${x * G}" cy="${y * G}" r="4"/>`;
+        }
+      }
+    }
+    // điện thế nút
+    const r = curRes();
+    if ($('#showV').checked && r && built) {
+      const shown = new Set();
+      for (const c of model.comps) if (c.type === 'LABEL') {
+        const n = built.compNodes[c.id][0];
+        if (n == null) continue;
+        const p = EC.pinPositions(c)[0];
+        const w = (c.name || '?').length * 7.5 + 12;
+        h += tag(p.x * G + w / 2 + 4, p.y * G - 23, fshort(r.nodeV[n], 'V'), 'vtag');
+        shown.add(n);
+      }
+    }
+    // xem trước
+    if (mode === 'place' && placeType) h += compSVG(Object.assign({ id: 'ghost', type: placeType, name: '', params: EC.defaultParams(placeType) }, ghost), 'ghost');
+    if (mode === 'wire') {
+      h += `<circle class="cursor-dot" cx="${cursor.x * G}" cy="${cursor.y * G}" r="4"/>`;
+      if (wireStart) for (const s of lRoute(wireStart, cursor)) h += `<g class="wire preview"><line class="w" x1="${s[0] * G}" y1="${s[1] * G}" x2="${s[2] * G}" y2="${s[3] * G}"/></g>`;
+    }
+    layer.innerHTML = h;
+  }
+
+  /* ---------- sự kiện chuột ---------- */
+  function worldPt(ev) {
+    const rc = svg.getBoundingClientRect();
+    return { px: view.x + (ev.clientX - rc.left) / view.scale, py: view.y + (ev.clientY - rc.top) / view.scale };
+  }
+  const gridPt = (w) => ({ x: Math.round(w.px / G), y: Math.round(w.py / G) });
+  function connectedAt(p) {
+    if (!built) return false;
+    const k = p.x + ',' + p.y;
+    return (built.count.get(k) || 0) > 0 || model.wires.some((w) => EC.netlist.onInterior(p, w));
+  }
+
+  svg.addEventListener('contextmenu', (e) => e.preventDefault());
+  svg.addEventListener('pointerdown', (ev) => {
+    const w = worldPt(ev), g = gridPt(w);
+    cursor = g;
+    if (ev.button === 2) { if (mode === 'wire' && wireStart) wireStart = null; else setMode('select'); render(); return; }
+    if (ev.button === 1) { pan = { cx: ev.clientX, cy: ev.clientY, vx: view.x, vy: view.y }; svg.setPointerCapture(ev.pointerId); return; }
+    if (mode === 'place') {
+      pushUndo();
+      const c = addComp(placeType, g.x, g.y, ghost.rot, ghost.flip);
+      sel = { kind: 'comp', id: c.id };
+      changed(false);
+      return;
+    }
+    if (mode === 'wire') {
+      if (!wireStart) { wireStart = g; render(); return; }
+      if (g.x === wireStart.x && g.y === wireStart.y) { wireStart = null; render(); return; }
+      const hit = connectedAt(g);
+      pushUndo();
+      for (const s of lRoute(wireStart, g)) addWire(...s);
+      wireStart = hit ? null : g;
+      changed(false);
+      return;
+    }
+    // chế độ chọn
+    const t = ev.target.closest('[data-cid],[data-wid]');
+    if (t && t.dataset.cid) {
+      const c = comp(t.dataset.cid);
+      sel = { kind: 'comp', id: c.id };
+      const pins = EC.pinPositions(c);
+      const ends = [];
+      for (const wr of model.wires) pins.forEach((p) => {
+        if (wr.x1 === p.x && wr.y1 === p.y) ends.push([wr, 1]);
+        if (wr.x2 === p.x && wr.y2 === p.y) ends.push([wr, 2]);
+      });
+      drag = { id: c.id, start: g, ox: c.x, oy: c.y, before: snap(), moved: false, ends: ends.map(([wr, i]) => [wr, i, wr['x' + i], wr['y' + i]]) };
+      svg.setPointerCapture(ev.pointerId);
+      tab = 'props';
+      render(); renderPanel();
+    } else if (t && t.dataset.wid) {
+      sel = { kind: 'wire', id: t.dataset.wid };
+      render(); renderPanel();
+    } else {
+      sel = null;
+      pan = { cx: ev.clientX, cy: ev.clientY, vx: view.x, vy: view.y };
+      svg.setPointerCapture(ev.pointerId);
+      render(); renderPanel();
+    }
+  });
+  svg.addEventListener('pointermove', (ev) => {
+    const w = worldPt(ev), g = gridPt(w);
+    if (pan) { view.x = pan.vx - (ev.clientX - pan.cx) / view.scale; view.y = pan.vy - (ev.clientY - pan.cy) / view.scale; render(); return; }
+    if (drag) {
+      const dx = g.x - drag.start.x, dy = g.y - drag.start.y;
+      const c = comp(drag.id);
+      if (c.x !== drag.ox + dx || c.y !== drag.oy + dy) {
+        c.x = drag.ox + dx; c.y = drag.oy + dy; drag.moved = true;
+        for (const [wr, i, x0, y0] of drag.ends) { wr['x' + i] = x0 + dx; wr['y' + i] = y0 + dy; }
+        built = EC.netlist.build(model);
+        render();
+      }
+      return;
+    }
+    const moved = g.x !== cursor.x || g.y !== cursor.y;
+    cursor = g;
+    if (mode === 'place') { ghost.x = g.x; ghost.y = g.y; if (moved) render(); }
+    else if (mode === 'wire' && moved) render();
+    hoverInfo(w, ev);
+  });
+  svg.addEventListener('pointerup', () => {
+    if (drag) {
+      if (drag.moved) { undoStack.push(drag.before); redoStack = []; drag = null; changed(false); }
+      drag = null;
+    }
+    pan = null;
+  });
+  svg.addEventListener('dblclick', (ev) => {
+    const t = ev.target.closest('[data-cid]');
+    if (t) { tab = 'props'; renderPanel(); const inp = document.querySelector('#tab-props input[type=text]'); if (inp) { inp.focus(); inp.select(); } }
+  });
+  svg.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const w = worldPt(ev);
+    const k = Math.exp(-ev.deltaY * 0.0015);
+    const ns = Math.min(4, Math.max(0.25, view.scale * k));
+    view.x = w.px - (w.px - view.x) * (view.scale / ns);
+    view.y = w.py - (w.py - view.y) * (view.scale / ns);
+    view.scale = ns;
+    render();
+  }, { passive: false });
+  window.addEventListener('resize', render);
+
+  function hoverInfo(w, ev) {
+    const hv = $('#hover');
+    const r = curRes();
+    if (!built || !r) { hv.textContent = ''; return; }
+    const g = gridPt(w);
+    const near = Math.hypot(w.px - g.x * G, w.py - g.y * G) < 8;
+    let n = near ? built.nodeAt(g.x, g.y) : undefined;
+    if (n === undefined) {
+      const t = ev.target.closest && ev.target.closest('[data-wid]');
+      if (t) { const wr = model.wires.find((x) => x.id === t.dataset.wid); if (wr) n = built.nodeAt(wr.x1, wr.y1); }
+    }
+    if (n !== undefined) { hv.textContent = `Nút ${built.nodeNames[n]}: V = ${fv(r.nodeV[n], 'V')}`; return; }
+    const t = ev.target.closest && ev.target.closest('[data-cid]');
+    if (t) {
+      const c = comp(t.dataset.cid), e = c && r.el[c.id];
+      if (e) { hv.textContent = c.name + ': ' + Object.keys(e.q).filter((k) => ['U', 'I', 'P', 'IB', 'IC', 'VCE', 'Vout'].includes(k)).map((k) => k + '=' + fshort(e.q[k], unitOf(k))).join('  '); return; }
+    }
+    hv.textContent = '';
+  }
+
+  /* ---------- chế độ / phím tắt ---------- */
+  function setMode(m, type) {
+    mode = m; placeType = type || null; wireStart = null;
+    if (m === 'place') { ghost.rot = 0; ghost.flip = false; ghost.x = cursor.x; ghost.y = cursor.y; }
+    document.querySelectorAll('[data-mode]').forEach((b) => b.classList.toggle('on', b.dataset.mode === m));
+    document.querySelectorAll('[data-place]').forEach((b) => b.classList.toggle('on', m === 'place' && b.dataset.place === type));
+    $('#status').textContent = m === 'place' ? `Đặt ${COMP[type].label}: bấm lên lưới (R xoay, F lật, Esc thôi)` :
+      m === 'wire' ? 'Vẽ dây: bấm điểm đầu rồi điểm cuối. Bấm chuột phải hoặc Esc để dừng' : 'Chọn: bấm để chọn, kéo để di chuyển, kéo nền để cuộn, lăn chuột để phóng to';
+    svg.style.cursor = m === 'select' ? 'default' : 'crosshair';
+    render();
+  }
+  function rotateSel() {
+    if (mode === 'place') { ghost.rot = (ghost.rot + 1) & 3; render(); return; }
+    if (sel && sel.kind === 'comp') { pushUndo(); const c = comp(sel.id); c.rot = ((c.rot || 0) + 1) & 3; changed(false); }
+  }
+  function flipSel() {
+    if (mode === 'place') { ghost.flip = !ghost.flip; render(); return; }
+    if (sel && sel.kind === 'comp') { pushUndo(); const c = comp(sel.id); c.flip = !c.flip; changed(false); }
+  }
+  function deleteSel() {
+    if (!sel) return;
+    pushUndo();
+    if (sel.kind === 'comp') model.comps = model.comps.filter((c) => c.id !== sel.id);
+    else model.wires = model.wires.filter((w) => w.id !== sel.id);
+    sel = null;
+    changed(false);
+  }
+  function undo() { if (!undoStack.length) return; redoStack.push(snap()); restore(undoStack.pop()); }
+  function redo() { if (!redoStack.length) return; undoStack.push(snap()); restore(redoStack.pop()); }
+
+  document.addEventListener('keydown', (ev) => {
+    const tag = (ev.target.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'select' || tag === 'textarea') return;
+    const k = ev.key.toLowerCase();
+    if ((ev.ctrlKey || ev.metaKey) && k === 'z') { ev.preventDefault(); ev.shiftKey ? redo() : undo(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && k === 'y') { ev.preventDefault(); redo(); return; }
+    if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (k === 'r') rotateSel();
+    else if (k === 'f') flipSel();
+    else if (k === 'delete' || k === 'backspace') { ev.preventDefault(); deleteSel(); }
+    else if (k === 'escape') { if (mode === 'wire' && wireStart) { wireStart = null; render(); } else setMode('select'); }
+    else if (k === 'w') setMode('wire');
+    else if (k === 'v' || k === 's') setMode('select');
+  });
+
+  /* ---------- bảng bên phải ---------- */
+  function renderMsgs() {
+    const box = $('#msgs');
+    let h = '';
+    if (built) built.errors.forEach((e) => (h += `<div class="msg err">⚠ ${esc(e)}</div>`));
+    if (result && !result.ok && !(built && built.errors.length)) h += `<div class="msg err">⚠ ${esc(result.error)}</div>`;
+    const warns = [...(built ? built.warnings : []), ...(result && result.warnings ? result.warnings : [])];
+    if (warns.length) h += `<div class="msg warn">${warns.slice(0, 4).map(esc).join('<br>')}${warns.length > 4 ? '<br>…' : ''}</div>`;
+    box.innerHTML = h;
+  }
+  function renderPanel() {
+    document.querySelectorAll('.tabs button').forEach((b) => b.classList.toggle('on', b.dataset.tab === tab));
+    ['props', 'results', 'tools'].forEach((t) => ($('#tab-' + t).hidden = t !== tab));
+    renderMsgs();
+    if (tab === 'props') renderProps();
+    else if (tab === 'results') renderResults();
+    else renderTools();
+  }
+
+  function renderProps() {
+    const box = $('#tab-props');
+    if (!sel) {
+      box.innerHTML = `<p class="empty">Bấm vào một linh kiện để xem và sửa thông số, cùng cách tính U, I, P.</p>
+      <p class="empty">Mới bắt đầu thì chọn một mạch trong <b>📘 Ví dụ (đề thi)</b> ở thanh trên cùng.</p>` + summaryHTML();
+      return;
+    }
+    if (sel.kind === 'wire') {
+      const w = model.wires.find((x) => x.id === sel.id);
+      const r = curRes();
+      const n = built && w ? built.nodeAt(w.x1, w.y1) : undefined;
+      box.innerHTML = `<h3>Dây dẫn</h3>` + (n !== undefined && r ? `<p>Thuộc nút <b>${esc(built.nodeNames[n])}</b>: V = <b>${fv(r.nodeV[n], 'V')}</b></p>` : '') +
+        `<div class="row"><button id="pDel">✕ Xoá dây</button></div>`;
+      $('#pDel').onclick = deleteSel;
+      return;
+    }
+    const c = comp(sel.id);
+    if (!c) { sel = null; renderProps(); return; }
+    const def = COMP[c.type];
+    let h = `<h3>${esc(def.label)}</h3>`;
+    h += `<div class="field"><label>${c.type === 'LABEL' ? 'Tên nút' : 'Tên'}</label><input type="text" id="pName" value="${esc(c.name)}"></div>`;
+    def.params.forEach((d) => {
+      if (d.type === 'bool') h += `<div class="field"><label>${esc(d.label)}</label><input type="checkbox" data-p="${d.k}" ${c.params[d.k] ? 'checked' : ''}></div>`;
+      else h += `<div class="field ${isFinite(U.parseValue(c.params[d.k])) ? '' : 'bad'}"><label>${esc(d.label)}${d.unit ? ' (' + d.unit + ')' : ''}</label><input type="text" data-p="${d.k}" value="${esc(c.params[d.k])}"></div>`;
+    });
+    if (def.hint) h += `<div class="hint">${esc(def.hint)}</div>`;
+    h += `<div class="hint">Chân: ${def.pinNames.map((p, i) => `${esc(p)} → nút <b>${built && built.compNodes[c.id] && built.compNodes[c.id][i] != null ? esc(built.nodeNames[built.compNodes[c.id][i]]) : '?'}</b>`).join(', ')}</div>`;
+    h += `<div class="row"><button id="pRot">⟳ Xoay</button><button id="pFlip">⇅ Lật</button><button id="pDel">✕ Xoá</button></div>`;
+    h += explainHTML(c);
+    box.innerHTML = h;
+    $('#pRot').onclick = rotateSel; $('#pFlip').onclick = flipSel; $('#pDel').onclick = deleteSel;
+    const nm = $('#pName');
+    nm.onchange = () => {
+      const v = nm.value.trim();
+      if (!v) { nm.value = c.name; return; }
+      if (c.type !== 'LABEL' && model.comps.some((o) => o !== c && o.name === v)) { alert('Tên đã được dùng'); nm.value = c.name; return; }
+      pushUndo(); c.name = v; changed(false);
+    };
+    box.querySelectorAll('[data-p]').forEach((inp) => {
+      if (inp.type === 'checkbox') inp.onchange = () => { pushUndo(); c.params[inp.dataset.p] = inp.checked; changed(false); };
+      else {
+        inp.onfocus = () => { inp._before = snap(); };
+        inp.oninput = () => {
+          c.params[inp.dataset.p] = inp.value;
+          inp.parentElement.classList.toggle('bad', !isFinite(U.parseValue(inp.value)));
+          solve(); render(); renderMsgs();
+          const ex = $('#explain'); if (ex) ex.outerHTML = explainHTML(c);
+        };
+        inp.onchange = () => { if (inp._before && inp._before !== snap()) { undoStack.push(inp._before); redoStack = []; inp._before = snap(); } changed(false); };
+      }
+    });
+  }
+
+  function summaryHTML() {
+    const r = curRes();
+    if (!r || !built) return '';
+    let h = '<h4>Điện thế các nút</h4><table>';
+    built.nodeNames.forEach((nm, i) => { if (i > 0) h += `<tr><td>${esc(nm)}</td><td class="num">${fv(r.nodeV[i], 'V')}</td></tr>`; });
+    return h + '</table>';
+  }
+
+  /* Giải thích cách tính cho linh kiện được chọn */
+  function explainHTML(c) {
+    const r = curRes();
+    if (!r || !r.el[c.id]) {
+      if (c.type === 'LABEL' && r && built) { const n = built.compNodes[c.id][0]; return `<div id="explain" class="explain"><div>V(${esc(c.name)}) = <span class="big">${fv(r.nodeV[n], 'V')}</span> (so với GND)</div></div>`; }
+      return '<div id="explain"></div>';
+    }
+    const e = r.el[c.id], q = e.q, p = parsedParams(c) || {};
+    const ac = r.ctx.ac;
+    const nodes = built.compNodes[c.id].map((n) => built.nodeNames[n]);
+    const L = [];
+    const V = (k) => fv(q[k], unitOf(k));
+    const two = q.U !== undefined;
+    if (e.state) L.push(`Trạng thái: <span class="badge">${EC.solver.STATE_NAMES[e.state]}</span>`);
+    if (two) L.push(`U = V(${esc(nodes[0])}) − V(${esc(nodes[1])}) = <b>${V('U')}</b>`);
+    const f = r.ctx.freq, w = r.ctx.omega;
+    switch (c.type) {
+      case 'R':
+        L.push(`I = U / R = ${V('U')} / ${U.fmt(p.R, 'Ω')} = <b>${V('I')}</b>`);
+        L.push(`P = U·I = I²·R = <b>${fv(q.P, 'W')}</b>`);
+        break;
+      case 'C':
+        if (!ac) L.push('Ở DC tụ điện hở mạch nên I = 0');
+        else { const X = 1 / (w * p.C); L.push(`X_C = 1/(2πfC) = 1/(2π·${U.fmt(f, 'Hz')}·${U.fmt(p.C, 'F')}) = <b>${U.fmt(X, 'Ω')}</b>`); L.push(`Z_C = −j${U.num(X, 4)} Ω ; I = U / Z_C = <b>${V('I')}</b>`); L.push(`Q = <b>${fv(q.Q, 'var')}</b> (P = 0)`); }
+        break;
+      case 'L':
+        if (!ac) L.push(`Ở DC cuộn cảm ngắn mạch nên U = 0. I = <b>${V('I')}</b>`);
+        else { const X = w * p.L; L.push(`X_L = 2πfL = 2π·${U.fmt(f, 'Hz')}·${U.fmt(p.L, 'H')} = <b>${U.fmt(X, 'Ω')}</b>`); L.push(`Z_L = j${U.num(X, 4)} Ω ; I = U / Z_L = <b>${V('I')}</b>`); L.push(`Q = <b>${fv(q.Q, 'var')}</b>`); }
+        break;
+      case 'Z': {
+        const Z = ac ? { re: p.R, im: p.X } : { re: p.R, im: 0 };
+        L.push(`Z = ${U.fmtRect(Z, 'Ω')} = ${U.fmtC(Z, 'Ω')}${ac ? '' : ' (ở DC chỉ còn R)'}`);
+        L.push(`I = U / Z = <b>${V('I')}</b>`);
+        L.push(`P = I²·R = <b>${fv(q.P, 'W')}</b>${ac ? ` ; Q = I²·X = <b>${fv(q.Q, 'var')}</b>` : ''}`);
+        break;
+      }
+      case 'V': case 'ACV': case 'I': case 'ACI': {
+        const Iout = { re: -q.I.re, im: -q.I.im };
+        if (c.type === 'V' || c.type === 'ACV') L.push(`Dòng phát ra từ cực + : <b>${fv(Iout, 'A')}</b>`);
+        else L.push(`I = <b>${V('I')}</b>`);
+        L.push(`Công suất nguồn phát ra: <b>${fv(-q.P, 'W')}</b>${ac ? ` ; Q = ${U.fmt(-(q.Q || 0), 'var')}` : ''}`);
+        if (ac && (c.type === 'ACV')) L.push(`Biên độ đỉnh = √2 · ${U.fmt(p.V, 'V')} = ${U.fmt(p.V * Math.SQRT2, 'V')}`);
+        break;
+      }
+      case 'SW':
+        L.push(p.closed ? `Công tắc đóng (U = 0), I = <b>${V('I')}</b>` : 'Công tắc mở nên I = 0');
+        break;
+      case 'D':
+        if (e.state === 'on') L.push(`Diode dẫn: U_D = Vf = ${U.fmt(p.Vf, 'V')}, dòng qua diode I = <b>${V('I')}</b> &gt; 0 ✓`);
+        else L.push(`Diode tắt vì U_D = ${V('U')} &lt; Vf = ${U.fmt(p.Vf, 'V')}, nên I = 0`);
+        L.push(`P = U·I = <b>${fv(q.P, 'W')}</b>`);
+        break;
+      case 'ZD':
+        if (e.state === 'bd') L.push(`Zener ổn áp: U_KA = Vz = ${U.fmt(p.Vz, 'V')}. Dòng Zener (K → A) = <b>${fv({ re: -q.I.re, im: -q.I.im }, 'A')}</b>`);
+        else if (e.state === 'fwd') L.push(`Zener phân cực thuận như diode thường: U = Vf, I = <b>${V('I')}</b>`);
+        else L.push(`Zener tắt: −Vz &lt; U &lt; Vf nên I = 0`);
+        L.push(`P = <b>${fv(q.P, 'W')}</b>`);
+        break;
+      case 'NPN': case 'PNP': {
+        L.push(`I_B = <b>${V('IB')}</b> ; I_C = <b>${V('IC')}</b> ; I_E = I_B + I_C = ${V('IE')}`);
+        L.push(`V_BE = ${V('VBE')} ; V_CE = <b>${V('VCE')}</b>`);
+        if (!ac) {
+          const bib = p.beta * q.IB.re;
+          if (e.state === 'sat') L.push(`β·I_B = ${p.beta}·${U.fmt(q.IB.re, 'A')} = ${U.fmt(bib, 'A')} &gt; I_C = ${U.fmt(q.IC.re, 'A')} nên transistor <b>bão hòa</b>, V_CE = V_CE(sat)`);
+          else if (e.state === 'act') L.push(`V_CE = ${U.fmt(q.VCE.re, 'V')} &gt; V_CE(sat) nên transistor ở vùng <b>khuếch đại</b>: I_C = β·I_B = ${U.fmt(bib, 'A')}`);
+          else L.push(`V_BE chưa đạt ${U.fmt(p.Vbe, 'V')} nên transistor <b>ngưng dẫn</b> (I_B = I_C = 0)`);
+        }
+        L.push(`Công suất tiêu tán P = V_CE·I_C + V_BE·I_B = <b>${fv(q.P, 'W')}</b>`);
+        break;
+      }
+      case 'OPAMP':
+        L.push(`V+ = ${V('Vp')} ; V− = ${V('Vm')} ; <b>V_out = ${V('Vout')}</b>`);
+        if (e.state === 'lin') L.push('Tuyến tính: V+ = V− (ngắn mạch ảo), dòng vào hai chân = 0');
+        else L.push(`Đầu ra bị giới hạn ở mức ${e.state === 'pos' ? '+' : ''}${U.fmt(e.state === 'pos' ? p.Vpos : p.Vneg, 'V')} vì giá trị lý tưởng vượt khỏi nguồn nuôi`);
+        L.push(`Dòng ra ở chân Out: ${V('Iout')}`);
+        break;
+    }
+    if (ac && two && c.type !== 'V' && c.type !== 'ACV') L.push(`Dạng đại số: U = ${U.fmtRect(q.U, 'V')} ; I = ${U.fmtRect(q.I, 'A')}`);
+    return `<h4>Kết quả ${ac ? '(AC ' + U.fmt(f, 'Hz') + ', hiệu dụng)' : '(DC)'}</h4><div id="explain" class="explain">${L.map((l) => `<div>${l}</div>`).join('')}</div>`;
+  }
+
+  function renderResults() {
+    const box = $('#tab-results');
+    const r = curRes();
+    if (!r) { box.innerHTML = '<p class="empty">Chưa có kết quả. Hãy vẽ mạch có nguồn và GND.</p>'; return; }
+    let h = summaryHTML();
+    h += '<h4>Linh kiện</h4><table><tr><th>Tên</th><th>U</th><th>I</th><th>P</th></tr>';
+    for (const c of model.comps) {
+      const e = r.el[c.id];
+      if (!e) continue;
+      const q = e.q;
+      let u = q.U !== undefined ? q.U : q.VCE !== undefined ? q.VCE : q.Vout;
+      let i = q.I !== undefined ? q.I : q.IC !== undefined ? q.IC : q.Iout;
+      const br = (t) => t.replace(' ∠ ', '<br>∠ ');
+      h += `<tr class="click" data-sel="${c.id}"><td><b>${esc(c.name)}</b>${e.state ? '<br><span class="badge">' + EC.solver.STATE_NAMES[e.state] + '</span>' : ''}</td><td class="num">${br(fv(u, 'V'))}</td><td class="num">${br(fv(i, 'A'))}</td><td class="num">${fv(q.P, 'W')}</td></tr>`;
+    }
+    h += '</table><p class="hint">BJT: cột U là V_CE, cột I là I_C. Op-amp: U là V_out. P &lt; 0 nghĩa là linh kiện phát công suất. Bấm vào một dòng để xem chi tiết.</p>';
+    if (r.ctx.ac) {
+      let P = 0, Q = 0;
+      for (const c of model.comps) if (['ACV', 'ACI'].includes(c.type) && r.el[c.id]) { P -= r.el[c.id].q.P; Q -= r.el[c.id].q.Q || 0; }
+      h += `<h4>Tổng nguồn phát</h4><div class="explain"><div>P = ${U.fmt(P, 'W')} ; Q = ${U.fmt(Q, 'var')} ; S = ${U.fmt(Math.hypot(P, Q), 'VA')} ; cosφ = ${U.num(P / (Math.hypot(P, Q) || 1), 4)}</div></div>`;
+    }
+    box.innerHTML = h;
+    box.querySelectorAll('[data-sel]').forEach((tr) => (tr.onclick = () => { sel = { kind: 'comp', id: tr.dataset.sel }; tab = 'props'; render(); renderPanel(); }));
+  }
+
+  /* ---------- Công cụ ---------- */
+  function paramOptions(selected) {
+    let h = '';
+    for (const c of model.comps) for (const d of COMP[c.type].params) {
+      if (d.type === 'bool') continue;
+      const v = c.name + '|' + d.k;
+      h += `<option value="${esc(v)}" ${v === selected ? 'selected' : ''}>${esc(c.name)} – ${esc(d.label)}</option>`;
+    }
+    return h;
+  }
+  function quantityOptions(selected) {
+    let h = '';
+    if (!built) return h;
+    built.nodeNames.forEach((nm, i) => { if (i > 0) { const v = 'n|' + nm; h += `<option value="${esc(v)}" ${v === selected ? 'selected' : ''}>V(${esc(nm)}) – điện thế nút</option>`; } });
+    const r = result && result.ok ? result.dc : null;
+    for (const c of model.comps) {
+      const e = r && r.el[c.id];
+      if (!e) continue;
+      for (const k of Object.keys(e.q)) {
+        const v = 'e|' + c.name + '|' + k;
+        h += `<option value="${esc(v)}" ${v === selected ? 'selected' : ''}>${esc(c.name)} – ${esc(QLABEL[k] || k)}</option>`;
+      }
+    }
+    return h;
+  }
+  function modeOptions(selected) {
+    let h = `<option value="dc" ${selected === 'dc' ? 'selected' : ''}>DC</option>`;
+    if (result && result.ok) result.ac.forEach((a) => { const v = 'ac:' + a.ctx.freq; h += `<option value="${v}" ${v === selected ? 'selected' : ''}>AC ${U.fmt(a.ctx.freq, 'Hz')} (độ lớn hiệu dụng)</option>`; });
+    return h;
+  }
+  function specFrom(qv, mv) {
+    const parts = qv.split('|');
+    const mode = mv === 'dc' ? 'dc' : parseFloat(mv.slice(3));
+    return parts[0] === 'n' ? { node: parts[1], mode } : { comp: parts[1], key: parts[2], mode };
+  }
+  function specLabel(s) { return s.node != null ? `V(${s.node})` : `${QLABEL[s.key] || s.key} của ${s.comp}`; }
+  function specUnit(s) { return s.node != null ? 'V' : unitOf(s.key); }
+  function specToVals(s) {
+    if (!s) return {};
+    return { q: s.node != null ? 'n|' + s.node : 'e|' + s.comp + '|' + s.key, m: s.mode === 'dc' || s.mode == null ? 'dc' : 'ac:' + s.mode };
+  }
+
+  function renderTools() {
+    const box = $('#tab-tools');
+    if (!model.comps.length) { box.innerHTML = '<p class="empty">Hãy vẽ mạch trước.</p>'; return; }
+    const gs = toolState.goal || {}, sw = toolState.sweep || {};
+    const gv = specToVals(gs.spec), sv = specToVals(sw.spec);
+    box.innerHTML = `
+    <div class="tool-box"><h3>🎯 Tìm giá trị</h3>
+      <div class="hint">Tìm giá trị một thông số sao cho đại lượng đạt mục tiêu. Ví dụ: tìm R3 để V(A) = 8,5 V.</div>
+      <div class="field"><label>Thay đổi</label><select id="gP">${paramOptions(gs.comp ? gs.comp + '|' + gs.param : '')}</select></div>
+      <div class="field"><label>Để cho</label><select id="gQ">${quantityOptions(gv.q)}</select></div>
+      <div class="field"><label>Chế độ</label><select id="gM">${modeOptions(gv.m || 'dc')}</select></div>
+      <div class="field"><label>Bằng</label><input type="text" id="gT" value="${esc(gs.target != null ? gs.target : '')}" placeholder="ví dụ 8.5"></div>
+      <div class="field"><label>Khoảng tìm</label><input type="text" id="gR" value="${esc(gs.range || '')}" placeholder="tự động (vd: 1 - 1M)"></div>
+      <div class="row"><button class="primary" id="gGo">Tìm</button></div>
+      <div id="gOut">${toolState.goalOut}</div>
+    </div>
+    <div class="tool-box"><h3>📈 Quét tham số</h3>
+      <div class="hint">Cho một thông số chạy trong một khoảng và vẽ đồ thị một đại lượng. App tự tìm ngưỡng mà diode/BJT/op-amp đổi trạng thái (ví dụ Câu 8: miền R_B để transistor bão hòa).</div>
+      <div class="field"><label>Thông số</label><select id="sP">${paramOptions(sw.comp ? sw.comp + '|' + sw.param : '')}</select></div>
+      <div class="field"><label>Từ</label><input type="text" id="sF" value="${esc(sw.from != null ? U.fmt(sw.from).trim().replace(/\s/g, '') : '')}" placeholder="vd 1k"></div>
+      <div class="field"><label>Đến</label><input type="text" id="sT" value="${esc(sw.to != null ? U.fmt(sw.to).trim().replace(/\s/g, '') : '')}" placeholder="vd 1M"></div>
+      <div class="field"><label>Số bước</label><input type="text" id="sN" value="${sw.steps || 50}"></div>
+      <div class="field"><label>Thang log</label><input type="checkbox" id="sL" ${sw.log ? 'checked' : ''}></div>
+      <div class="field"><label>Đại lượng</label><select id="sQ">${quantityOptions(sv.q)}</select></div>
+      <div class="field"><label>Chế độ</label><select id="sM">${modeOptions(sv.m || 'dc')}</select></div>
+      <div class="row"><button class="primary" id="sGo">Quét</button></div>
+      <div id="sOut">${toolState.sweepOut}</div>
+    </div>`;
+    $('#gGo').onclick = runGoal;
+    $('#sGo').onclick = runSweep;
+    box.querySelectorAll('[data-apply]').forEach((b) => (b.onclick = () => applyParam(b.dataset.apply, b.dataset.val)));
+  }
+  function applyParam(cp, val) {
+    const [cn, pk] = cp.split('|');
+    const c = model.comps.find((x) => x.name === cn);
+    if (!c) return;
+    pushUndo();
+    c.params[pk] = val;
+    changed(false);
+  }
+  function readGoal() {
+    const [comp, param] = $('#gP').value.split('|');
+    const rg = $('#gR').value.trim();
+    let min, max;
+    if (rg) { const m = rg.split(/\s*(?:-|–|…|\.\.|đến|to)\s*(?=[+\d.])/); if (m.length === 2) { min = U.parseValue(m[0]); max = U.parseValue(m[1]); } }
+    toolState.goal = { comp, param, spec: specFrom($('#gQ').value, $('#gM').value), target: $('#gT').value, range: rg, min, max };
+    return toolState.goal;
+  }
+  function runGoal() {
+    const g = readGoal();
+    const target = U.parseValue(g.target);
+    if (!g.comp || !$('#gQ').value || !isFinite(target)) { toolState.goalOut = '<div class="msg err">Hãy chọn đủ thông số, đại lượng và nhập giá trị mục tiêu.</div>'; renderTools(); return; }
+    $('#gOut').innerHTML = '<p class="empty">Đang tính…</p>';
+    setTimeout(() => {
+      const res = EC.tools.goalSeek({ model, comp: g.comp, param: g.param, spec: g.spec, target, min: g.min, max: g.max });
+      const d = COMP[model.comps.find((c) => c.name === g.comp).type].params.find((p) => p.k === g.param);
+      const unit = d ? d.unit : '';
+      if (res.ok) {
+        const valStr = U.num(res.x, 6);
+        toolState.goalOut = `<div class="explain"><div>${esc(g.comp)} = <span class="big">${U.fmt(res.x, unit, 5)}</span></div><div>Khi đó ${esc(specLabel(g.spec))} = ${U.fmt(res.value, specUnit(g.spec), 5)}</div>` +
+          (res.roots.length > 1 ? `<div class="hint">Còn ${res.roots.length - 1} nghiệm khác: ${res.roots.slice(1, 4).map((x) => U.fmt(x, unit)).join(', ')}</div>` : '') +
+          `<div class="row"><button data-apply="${esc(g.comp + '|' + g.param)}" data-val="${valStr}">Áp dụng vào mạch</button></div></div>`;
+      } else {
+        toolState.goalOut = `<div class="msg warn">Không tìm thấy nghiệm trong khoảng ${U.fmt(res.range[0], unit)} – ${U.fmt(res.range[1], unit)}.` +
+          (isFinite(res.best.x) ? ` Gần nhất: ${esc(g.comp)} = ${U.fmt(res.best.x, unit)} (sai lệch ${U.fmt(res.best.f, specUnit(g.spec))}).` : '') + ' Thử nhập "Khoảng tìm" khác.</div>';
+      }
+      renderTools();
+    }, 10);
+  }
+  function runSweep() {
+    const [comp, param] = $('#sP').value.split('|');
+    const from = U.parseValue($('#sF').value), to = U.parseValue($('#sT').value);
+    const steps = Math.min(400, Math.max(2, parseInt($('#sN').value, 10) || 50));
+    let log = $('#sL').checked;
+    const spec = specFrom($('#sQ').value || 'n|x', $('#sM').value);
+    toolState.sweep = { comp, param, from, to, steps, log, spec };
+    if (!comp || !isFinite(from) || !isFinite(to) || from === to || !$('#sQ').value) { toolState.sweepOut = '<div class="msg err">Hãy chọn thông số, đại lượng và nhập khoảng hợp lệ.</div>'; renderTools(); return; }
+    if (log && (from <= 0 || to <= 0)) log = false;
+    $('#sOut').innerHTML = '<p class="empty">Đang tính…</p>';
+    setTimeout(() => {
+      const res = EC.tools.sweep({ model, comp, param, from, to, steps, log, spec });
+      const d = COMP[model.comps.find((c) => c.name === comp).type].params.find((p) => p.k === param);
+      const unit = d ? d.unit : '', yu = specUnit(spec);
+      let h = chartSVG(res, log, unit, yu);
+      if (res.transitions.length) {
+        h += '<h4>Ngưỡng đổi trạng thái</h4><div class="explain">';
+        res.transitions.forEach((t) => (h += `<div>${esc(comp)} = <b>${U.fmt(t.x, unit, 5)}</b>: ${esc(t.from)} → ${esc(t.to)}</div>`));
+        h += '</div>';
+      }
+      const pts = res.pts.filter((_, i) => res.pts.length <= 12 || i % Math.ceil(res.pts.length / 12) === 0 || i === res.pts.length - 1);
+      h += `<h4>Bảng giá trị</h4><table><tr><th>${esc(comp)}</th><th>${esc(specLabel(spec))}</th><th>Trạng thái</th></tr>` +
+        pts.map((p) => `<tr><td class="num">${U.fmt(p.x, unit)}</td><td class="num">${U.fmt(p.y, yu)}</td><td style="font-size:11.5px">${esc(p.sig.replace(/:(\w+)/g, (m, s) => ': ' + (EC.solver.STATE_NAMES[s] || s)))}</td></tr>`).join('') + '</table>';
+      toolState.sweepOut = h;
+      renderTools();
+    }, 10);
+  }
+  function chartSVG(res, log, xu, yu) {
+    const W = 300, H = 180, L = 46, R = 8, T = 10, B = 24;
+    const pts = res.pts.filter((p) => isFinite(p.y));
+    if (pts.length < 2) return '<p class="empty">Không có dữ liệu để vẽ.</p>';
+    const xs = res.pts.map((p) => p.x);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    let y0 = Math.min(...pts.map((p) => p.y)), y1 = Math.max(...pts.map((p) => p.y));
+    if (y1 - y0 < 1e-15) { y0 -= 1; y1 += 1; }
+    const sx = (x) => L + (log ? Math.log(x / x0) / Math.log(x1 / x0) : (x - x0) / (x1 - x0)) * (W - L - R);
+    const sy = (y) => T + (1 - (y - y0) / (y1 - y0)) * (H - T - B);
+    let d = '';
+    pts.forEach((p, i) => (d += (i ? 'L' : 'M') + sx(p.x).toFixed(1) + ' ' + sy(p.y).toFixed(1)));
+    let h = `<svg class="chart" viewBox="0 0 ${W} ${H}"><path class="ax" d="M${L} ${T}V${H - B}H${W - R}"/>`;
+    h += `<text x="${L - 4}" y="${T + 8}" text-anchor="end">${esc(U.fmt(y1, yu, 3))}</text><text x="${L - 4}" y="${H - B}" text-anchor="end">${esc(U.fmt(y0, yu, 3))}</text>`;
+    h += `<text x="${L}" y="${H - 8}">${esc(U.fmt(x0, xu, 3))}</text><text x="${W - R}" y="${H - 8}" text-anchor="end">${esc(U.fmt(x1, xu, 3))}${log ? ' (log)' : ''}</text>`;
+    res.transitions.forEach((t) => (h += `<line class="tr" x1="${sx(t.x)}" x2="${sx(t.x)}" y1="${T}" y2="${H - B}"/>`));
+    return h + `<path class="ln" d="${d}"/></svg>`;
+  }
+
+  /* ---------- thanh công cụ ---------- */
+  function buildPalette() {
+    const groups = {};
+    for (const [t, d] of Object.entries(COMP)) (groups[d.group] = groups[d.group] || []).push(t);
+    let h = '';
+    for (const [g, ts] of Object.entries(groups)) {
+      h += `<h4>${g}</h4>`;
+      for (const t of ts) {
+        const d = COMP[t];
+        const b = d.box;
+        const vb = `${b[0] * G - 6} ${Math.min(b[1], -1) * G - 6} ${(b[2] - b[0]) * G + 12} ${(Math.max(b[3], 1) - Math.min(b[1], -1)) * G + 12}`;
+        const ic = t === 'LABEL' ? '<path d="M0 0V-12" /><rect x="-12" y="-28" width="24" height="16" rx="8"/>' : d.draw({ params: EC.defaultParams(t) });
+        h += `<button data-place="${t}" title="${esc(d.label)}"><svg viewBox="${vb}">${ic}</svg>${esc(d.label)}</button>`;
+      }
+    }
+    $('#palette').innerHTML = h;
+    document.querySelectorAll('[data-place]').forEach((b) => (b.onclick = () => (mode === 'place' && placeType === b.dataset.place ? setMode('select') : setMode('place', b.dataset.place))));
+  }
+  function loadModel(m, keepView) {
+    model = JSON.parse(JSON.stringify(m));
+    fixSeq(); sel = null; built = null; result = null; resMode = null;
+    if (!keepView) fitView();
+    changed(false);
+  }
+  function fitView() {
+    if (!model.comps.length) { view = { x: -120, y: -100, scale: 1 }; return; }
+    let x1 = Infinity, y1 = Infinity, x2 = -Infinity, y2 = -Infinity;
+    for (const c of model.comps) { const b = EC.worldBox(c); x1 = Math.min(x1, b.x1); y1 = Math.min(y1, b.y1); x2 = Math.max(x2, b.x2); y2 = Math.max(y2, b.y2); }
+    for (const w of model.wires) { x1 = Math.min(x1, w.x1, w.x2); y1 = Math.min(y1, w.y1, w.y2); x2 = Math.max(x2, w.x1, w.x2); y2 = Math.max(y2, w.y1, w.y2); }
+    const W = svg.clientWidth || 800, H = svg.clientHeight || 600;
+    const bw = (x2 - x1 + 8) * G, bh = (y2 - y1 + 8) * G;
+    const s = Math.min(1.4, Math.max(0.4, Math.min(W / bw, H / bh)));
+    view.scale = s;
+    view.x = ((x1 + x2) / 2) * G - W / s / 2;
+    view.y = ((y1 + y2) / 2) * G - H / s / 2;
+  }
+  function showBanner(html) {
+    const b = $('#banner');
+    if (!html) { b.hidden = true; return; }
+    b.innerHTML = html + '<button class="x" title="Đóng">✕</button>';
+    b.hidden = false;
+    b.querySelector('.x').onclick = () => (b.hidden = true);
+  }
+
+  function init() {
+    buildPalette();
+    document.querySelectorAll('[data-mode]').forEach((b) => (b.onclick = () => setMode(b.dataset.mode)));
+    $('#btnRot').onclick = rotateSel; $('#btnFlip').onclick = flipSel; $('#btnDel').onclick = deleteSel;
+    $('#btnUndo').onclick = undo; $('#btnRedo').onclick = redo;
+    document.querySelectorAll('.tabs button').forEach((b) => (b.onclick = () => { tab = b.dataset.tab; renderPanel(); }));
+    $('#modeSel').onchange = (e) => { resMode = e.target.value; render(); renderPanel(); };
+    $('#showV').onchange = () => render();
+    const ex = $('#exSelect');
+    EC.EXAMPLES.forEach((e) => (ex.innerHTML += `<option value="${e.id}">${esc(e.title)}</option>`));
+    ex.onchange = () => {
+      const e = EC.EXAMPLES.find((x) => x.id === ex.value);
+      ex.value = '';
+      if (!e) return;
+      if (model.comps.length) pushUndo();
+      toolState = { goal: e.goal ? Object.assign({}, e.goal) : null, sweep: e.sweep ? Object.assign({}, e.sweep) : null, goalOut: '', sweepOut: '' };
+      loadModel(e.build());
+      showBanner(`<b>${esc(e.title)}</b><br>${esc(e.note)}`);
+      tab = e.goal || e.sweep ? 'tools' : 'results';
+      renderPanel();
+    };
+    $('#btnNew').onclick = () => { if (model.comps.length && !confirm('Xoá mạch hiện tại để vẽ mạch mới?')) return; pushUndo(); toolState = { goal: null, sweep: null, goalOut: '', sweepOut: '' }; showBanner(''); loadModel({ comps: [], wires: [] }); };
+    $('#btnSave').onclick = () => {
+      const blob = new Blob([JSON.stringify(model, null, 1)], { type: 'application/json' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mach-dien.json'; a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    };
+    $('#btnOpen').onclick = () => $('#fileIn').click();
+    $('#fileIn').onchange = (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      f.text().then((t) => { try { const m = JSON.parse(t); if (!Array.isArray(m.comps) || !Array.isArray(m.wires)) throw 0; pushUndo(); loadModel(m); } catch (err) { alert('File không hợp lệ'); } });
+      e.target.value = '';
+    };
+    $('#helpBody').innerHTML = EC.HELP_HTML;
+    $('#btnHelp').onclick = () => ($('#help').hidden = false);
+    $('#helpClose').onclick = () => ($('#help').hidden = true);
+    $('#help').onclick = (e) => { if (e.target.id === 'help') $('#help').hidden = true; };
+
+    let saved = null;
+    try { saved = localStorage.getItem(STORE); } catch (e) { /* bỏ qua */ }
+    let m = null;
+    if (saved) { try { m = JSON.parse(saved); if (!m.comps || !m.comps.length) m = null; } catch (e) { m = null; } }
+    if (m) loadModel(m);
+    else {
+      const e = EC.EXAMPLES[1];
+      loadModel(e.build());
+      showBanner(`<b>Chào mừng!</b> Đây là mạch Câu 2 của đề. Bấm vào linh kiện để xem cách tính, hoặc chọn mạch khác ở <b>📘 Ví dụ</b>. Bấm <b>? Công thức</b> để xem hướng dẫn và bảng công thức.`);
+    }
+    setMode('select');
+  }
+  init();
+})();
+</script>
+</body>
+</html>
