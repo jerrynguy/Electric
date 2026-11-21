@@ -446,7 +446,7 @@
     nm.onchange = () => {
       const v = nm.value.trim();
       if (!v) { nm.value = c.name; return; }
-      if (c.type !== 'LABEL' && model.comps.some((o) => o !== c && o.name === v)) { alert('Tên đã được dùng'); nm.value = c.name; return; }
+      if (c.type !== 'LABEL' && model.comps.some((o) => o !== c && o.name === v)) { $('#status').textContent = `Tên "${v}" đã được dùng, hãy chọn tên khác.`; nm.value = c.name; return; }
       pushUndo(); c.name = v; changed(false);
     };
     box.querySelectorAll('[data-p]').forEach((inp) => {
@@ -800,7 +800,7 @@
       tab = e.goal || e.sweep ? 'tools' : 'results';
       renderPanel();
     };
-    $('#btnNew').onclick = () => { if (model.comps.length && !confirm('Xoá mạch hiện tại để vẽ mạch mới?')) return; pushUndo(); toolState = { goal: null, sweep: null, goalOut: '', sweepOut: '' }; showBanner(''); loadModel({ comps: [], wires: [] }); };
+    $('#btnNew').onclick = () => { if (model.comps.length) pushUndo(); toolState = { goal: null, sweep: null, goalOut: '', sweepOut: '' }; showBanner(''); loadModel({ comps: [], wires: [] }); if (undoStack.length) $('#status').textContent = 'Đã tạo mạch mới. Bấm ↶ nếu muốn lấy lại mạch cũ.'; };
     $('#btnSave').onclick = () => {
       const blob = new Blob([JSON.stringify(model, null, 1)], { type: 'application/json' });
       const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'mach-dien.json'; a.click();
@@ -809,7 +809,7 @@
     $('#btnOpen').onclick = () => $('#fileIn').click();
     $('#fileIn').onchange = (e) => {
       const f = e.target.files[0]; if (!f) return;
-      f.text().then((t) => { try { const m = JSON.parse(t); if (!Array.isArray(m.comps) || !Array.isArray(m.wires)) throw 0; pushUndo(); loadModel(m); } catch (err) { alert('File không hợp lệ'); } });
+      f.text().then((t) => { try { const m = JSON.parse(t); if (!Array.isArray(m.comps) || !Array.isArray(m.wires)) throw 0; pushUndo(); loadModel(m); } catch (err) { $('#status').textContent = 'File không hợp lệ: cần file .json do app này lưu ra.'; } });
       e.target.value = '';
     };
     $('#helpBody').innerHTML = EC.HELP_HTML;
